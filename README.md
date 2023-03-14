@@ -1,2 +1,1 @@
-# coreda
-Computational research data management
+# Coreda: Computational Research Data Management
