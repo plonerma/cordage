@@ -8,12 +8,12 @@ from .cordage_config import CordageConfig
 
 
 class Trial:
-    def __init__(self, config, cordage_config):
+    def __init__(self, config, cordage_config, metadata):
         super().__init__()
 
         self.config = config
         self.cordage_config = cordage_config
-        self.metadata: Dict[str, Any] = {"status": "waiting"}
+        self.metadata: Dict[str, Any] = {"status": "waiting", **metadata}
         self._output_dir: Optional[Path] = None
 
     @property

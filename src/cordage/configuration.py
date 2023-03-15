@@ -105,13 +105,18 @@ def construct_config_parser(config_cls: Type[T], cordage_config, **kw) -> argpar
     return parser
 
 
-def parse_config(config_cls: Type[T], cordage_config, **kw) -> T:
+def remove_missing_values(data: Mapping) -> Dict[str, Any]:
+    return {k: v for k, v in data.items() if v is not MISSING}
+
+
+def parse_config(config_cls: Type[T], cordage_config, args=None, **kw) -> T:
     # construct parser
     parser = construct_config_parser(config_cls, cordage_config, **kw)
 
-    flat_dict: Dict[str, Any] = {k: v for k, v in vars(parser.parse_args()).items() if v is not MISSING}
+    conf_data: dict = vars(parser.parse_args(args))
+    conf_data = remove_missing_values(conf_data)
 
-    return from_dict(config_cls, flat_dict)
+    return from_dict(config_cls, conf_data)
 
 
 def flat_update(flat_dict, nested_dict, prefix=None):
