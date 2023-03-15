@@ -1,1 +1,1 @@
-# Coreda: Computational Research Data Management
+# Cordage: Computational Research Data Management
