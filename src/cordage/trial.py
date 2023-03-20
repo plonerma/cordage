@@ -4,15 +4,15 @@ from math import floor, log10
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
-from .cordage_config import CordageConfig
+from .global_config import GlobalConfig
 
 
 class Trial:
-    def __init__(self, config, cordage_config, metadata):
+    def __init__(self, config, global_config, metadata):
         super().__init__()
 
         self.config = config
-        self.cordage_config = cordage_config
+        self.global_config = global_config
         self.metadata: Dict[str, Any] = {"status": "waiting", **metadata}
         self._output_dir: Optional[Path] = None
 
@@ -52,13 +52,13 @@ class Trial:
         self.metadata.update(end_time=end_time, duration=end_time - self.metadata["start_time"], status=status)
 
     def create_output_dir(self):
-        ideal_path = self.cordage_config.output_dir_format.format(**self.metadata)
-        path = self.cordage_config.base_output_dir / ideal_path
+        ideal_path = self.global_config.output_dir_format.format(**self.metadata)
+        path = self.global_config.base_output_dir / ideal_path
 
         i = 1
         while path.exists():
             level = floor(log10(i) / 2) + 1
-            path = self.cordage_config.base_output_dir / (ideal_path + "_" * level + str(i).zfill(2 * level))
+            path = self.global_config.base_output_dir / (ideal_path + "_" * level + str(i).zfill(2 * level))
             i += 1
 
         # found a path that does not exist yet
@@ -69,5 +69,5 @@ class Trial:
         pass
 
     @classmethod
-    def make_config(cls, func: Callable, cordage_config: CordageConfig):
+    def make_config(cls, func: Callable, global_config: GlobalConfig):
         pass

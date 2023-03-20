@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 @dataclasses.dataclass
-class CordageConfig:
+class GlobalConfig:
     """Holds the configuration for cordage."""
 
     config_param_name: str = "config"
