@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime, timedelta
 from os import PathLike
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping
@@ -97,34 +96,3 @@ def write_config_file(path: PathLike, data: Mapping[str, Any]):
 
     with open(path, "w", encoding="utf-8") as conf_file:
         return writer(data, conf_file)
-
-
-def serialize_value(value):
-    if isinstance(value, Path):
-        return str(value)
-
-    elif isinstance(value, datetime):
-        return datetime.isoformat(value)
-
-    elif isinstance(value, timedelta):
-        return value.total_seconds()
-
-    else:
-        return value
-
-
-def deserialize_value(value, type):
-    if issubclass(type, Path):
-        return Path(value)
-
-    elif issubclass(type, float):
-        return float(value)
-
-    elif isinstance(type, datetime):
-        return datetime.fromisoformat(value)
-
-    elif isinstance(type, timedelta):
-        return timedelta(seconds=value)
-
-    else:
-        return value

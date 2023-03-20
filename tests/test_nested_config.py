@@ -26,7 +26,7 @@ class NestedConfig:
     hyper_params: HyperParameterConfig
 
 
-def test_simple_config(global_config):
+def test_nested_config(global_config):
     def func(config: NestedConfig):
         assert config.data.name == "mnist"
         assert config.data.version == 1

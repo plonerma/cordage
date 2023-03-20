@@ -3,25 +3,35 @@ from contextlib import contextmanager
 from datetime import datetime
 from math import floor, log10
 from pathlib import Path
+from traceback import format_exc
 from typing import Any, Callable, Dict
 
-from .configuration import to_dict
+from .configuration import nested_serialization
 from .global_config import GlobalConfig
-from .util import serialize_value
 
 
 class Trial:
     def __init__(self, config, global_config, metadata):
-        super().__init__()
+        self.metadata: Dict[str, Any] = {
+            "status": "waiting",
+            "output_dir": None,
+            "config": config,
+            "global_config": global_config,
+            **metadata,
+        }
 
-        self.config = config
-        self.global_config = global_config
-        self.metadata: Dict[str, Any] = {"status": "waiting", "output_dir": None, **metadata}
+    @property
+    def config(self):
+        return self.metadata["config"]
+
+    @property
+    def global_config(self):
+        return self.metadata["global_config"]
 
     @property
     def central_metadata_path(self):
         rel_path = self.output_dir.relative_to(self.global_config.base_output_dir)
-        return self.global_config.central_metadata_store / rel_path.parent / (rel_path.name + ".json")
+        return self.global_config.central_metadata.path / rel_path / "metadata.json"
 
     @property
     def metadata_path(self):
@@ -69,8 +79,6 @@ class Trial:
             end_time=end_time,
             duration=end_time - self.metadata["start_time"],
             status=status,
-            config=to_dict(self.config),
-            global_configuration=to_dict(self.global_config),
         )
         self.save_metadata()
 
@@ -95,23 +103,49 @@ class Trial:
         self.metadata["output_dir"] = path
 
     def handle_exception(self, exc):
-        pass
+        self.metadata["exception"] = {"short": repr(exc), "traceback": format_exc()}
 
     def save_metadata(self):
-        md_dict = {k: serialize_value(v) for k, v in self.metadata.items()}
+        md_dict = nested_serialization(self.metadata)
 
         # save metadata in output dir
         with open(self.metadata_path, "w", encoding="utf-8") as fp:
             json.dump(md_dict, fp)
 
-        if self.global_config.use_central_metadata_store:
+        if self.global_config.central_metadata.use:
             # rel exeriment path
             central_md_path = self.central_metadata_path
             central_md_path.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(central_md_path, "w", encoding="utf-8") as fp:
+            with central_md_path.open("w", encoding="utf-8") as fp:
                 json.dump(md_dict, fp)
+
+            with (central_md_path.parent / "files.json").open("w", encoding="utf-8") as fp:
+                json.dump(self.produce_file_tree(self.output_dir), fp)
 
     @classmethod
     def make_config(cls, func: Callable, global_config: GlobalConfig):
         pass
+
+    def produce_file_tree(self, path, level=0):
+        max_level = self.global_config.file_tree.max_level
+        max_files = self.global_config.file_tree.max_files
+
+        if path.is_dir():
+            if level > self.global_config.file_tree.max_level:
+                return f"Maximum depth of {max_level} exceeded."
+
+            dir_dict = {}
+
+            for i, p in enumerate(path.iterdir()):
+                if i == max_files:
+                    return f"Maximum number of files ({max_files}) exceeded."
+
+                dir_dict[p.name] = self.produce_file_tree(p, level=level + 1)
+
+            return dir_dict
+
+        elif path.is_file():
+            return path.stat().st_size
+        else:
+            return None

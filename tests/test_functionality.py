@@ -12,7 +12,7 @@ class Config:
     b: str = "test"
 
 
-def test_metadata(tmp_path, global_config):
+def test_metadata(global_config):
     trial_store: List[cordage.Trial] = []
 
     def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):
@@ -41,7 +41,7 @@ def test_metadata(tmp_path, global_config):
 
     rel_dir = trial.output_dir.relative_to(global_config.base_output_dir)
 
-    central_metadata = global_config.central_metadata_store / rel_dir.parent / (rel_dir.name + ".json")
+    central_metadata = global_config.central_metadata.path / rel_dir / "metadata.json"
 
     assert central_metadata.exists()
 
@@ -53,7 +53,7 @@ def test_metadata(tmp_path, global_config):
     assert metadata["status"] == "complete"
 
 
-def test_trial_id_collision(tmp_path, global_config):
+def test_trial_id_collision(global_config):
     global_config.trial_id_format = "trial"
     global_config.output_dir_format = "{trial_id}"
 

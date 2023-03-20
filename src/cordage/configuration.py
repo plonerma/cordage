@@ -8,12 +8,13 @@ else:
 
 import argparse
 import dataclasses
+from datetime import datetime, timedelta
 from os import PathLike
 from pathlib import Path
 
 from docstring_parser import parse as parse_docstring
 
-from .util import deserialize_value, read_config_file, serialize_value, write_config_file
+from .util import read_config_file, write_config_file
 
 T = TypeVar("T")
 
@@ -182,20 +183,53 @@ def from_dict(config_cls: Type[T], data: Mapping) -> T:
 def to_dict(config) -> dict:
     """Represent the fields and values of configuration as a (nested) dict."""
 
-    d = dict()
+    d = dataclasses.asdict(config)
 
-    for field in dataclasses.fields(config):
-        value = getattr(config, field.name)
-
-        if dataclasses.is_dataclass(value):
-            d[field.name] = to_dict(value)
-        else:
-            d[field.name] = serialize_value(value)
-
-    return d
+    return nested_serialization(d)
 
 
 def to_file(config, path: PathLike):
     """Write config to json, toml, or yaml file."""
     data = to_dict(config)
     write_config_file(path, data)
+
+
+def nested_serialization(d):
+    if isinstance(d, dict):
+        return {k: nested_serialization(v) for k, v in d.items()}
+    else:
+        return serialize_value(d)
+
+
+def serialize_value(value):
+    if isinstance(value, Path):
+        return str(value)
+
+    elif isinstance(value, datetime):
+        return datetime.isoformat(value)
+
+    elif isinstance(value, timedelta):
+        return value.total_seconds()
+
+    elif dataclasses.is_dataclass(value):
+        return to_dict(value)
+
+    else:
+        return value
+
+
+def deserialize_value(value, type):
+    if issubclass(type, Path):
+        return Path(value)
+
+    elif issubclass(type, float):
+        return float(value)
+
+    elif isinstance(type, datetime):
+        return datetime.fromisoformat(value)
+
+    elif isinstance(type, timedelta):
+        return timedelta(seconds=value)
+
+    else:
+        return value

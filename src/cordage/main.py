@@ -46,9 +46,9 @@ def run(
 
     # derive configuration class
     try:
-        config_cls: Type = func_parameters[global_config.config_param_name].annotation
+        config_cls: Type = func_parameters[global_config.param_names.config].annotation
     except KeyError as exc:
-        raise TypeError(f"Callable must accept config in `{global_config.config_param_name}`.") from exc
+        raise TypeError(f"Callable must accept config in `{global_config.param_names.config}`.") from exc
 
     if description is None:
         if func.__doc__ is not None:
@@ -71,18 +71,18 @@ def run(
         for name, param in func_parameters.items():
             assert param.kind != param.POSITIONAL_ONLY, "Cordage currently does not support positional only parameters."
 
-            if name == global_config.config_param_name:
+            if name == global_config.param_names.config:
                 # pass the configuration
-                func_kw[global_config.config_param_name] = trial_config
+                func_kw[name] = trial_config
 
-            elif name == global_config.output_dir_param_name:
+            elif name == global_config.param_names.output_dir:
                 # pass path to output directory
                 if issubclass(param.annotation, str):
                     func_kw[name] = str(trial.output_dir)
                 else:
                     func_kw[name] = trial.output_dir
 
-            elif name == global_config.trial_object_param_name:
+            elif name == global_config.param_names.trial_object:
                 # pass trial object
                 func_kw[name] = trial
 
