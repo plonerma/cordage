@@ -13,7 +13,7 @@ from pathlib import Path
 
 from docstring_parser import parse as parse_docstring
 
-from .util import read_config_file, write_config_file
+from .util import deserialize_value, read_config_file, serialize_value, write_config_file
 
 T = TypeVar("T")
 
@@ -157,7 +157,7 @@ def from_dict(config_cls: Type[T], data: Mapping) -> T:
 
         if not dataclasses.is_dataclass(field.type):
             try:
-                config_kw[field.name] = flat_dict[field.name]
+                config_kw[field.name] = deserialize_value(flat_dict[field.name], field.type)
             except KeyError as exc:
                 if is_required(field):
                     raise KeyError(f"Field {field.name} in {config_cls} is required, but was not specified.") from exc
@@ -188,9 +188,9 @@ def to_dict(config) -> dict:
         value = getattr(config, field.name)
 
         if dataclasses.is_dataclass(value):
-            value = to_dict(value)
-
-        d[field.name] = value
+            d[field.name] = to_dict(value)
+        else:
+            d[field.name] = serialize_value(value)
 
     return d
 

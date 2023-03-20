@@ -1,17 +1,46 @@
 import inspect
-from typing import Callable, Type
+from os import PathLike
+from pathlib import Path
+from typing import Callable, Dict, Type, Union
 
 from docstring_parser import parse as parse_docstring
 
+from .configuration import from_dict as config_from_dict
 from .configuration import parse_config
 from .global_config import GlobalConfig
 from .trial import Trial
+from .util import logger
 
-USAGE_STR = "%(prog)s [-h] [config_file] <configuration options to overwrite>"
+USAGE_STR: str = "%(prog)s [-h] [config_file] <configuration options to overwrite>"
+DEFAULT_CONFIG_PATH: Path = Path("~/.config/cordage.json")
 
 
-def run(func: Callable, args=None, description=None, **kw):
-    global_config = GlobalConfig(**kw)
+def get_global_config(global_config: Union[PathLike, Dict, GlobalConfig, None]) -> GlobalConfig:
+    if global_config is None:
+        return GlobalConfig()
+    elif isinstance(global_config, dict):
+        return config_from_dict(GlobalConfig, global_config)
+    elif isinstance(global_config, (str, Path)):
+        return config_from_dict(GlobalConfig, {".": global_config})
+    else:
+        assert isinstance(global_config, GlobalConfig)
+        return global_config
+
+
+def run(
+    func: Callable,
+    args=None,
+    description=None,
+    global_config: Union[PathLike, Dict, GlobalConfig, None] = DEFAULT_CONFIG_PATH,
+):
+    try:
+        global_config = get_global_config(global_config)
+    except FileNotFoundError as exc:
+        if global_config == DEFAULT_CONFIG_PATH and exc.filename == str(DEFAULT_CONFIG_PATH):
+            logger.warning(f"Global configuration file ({DEFAULT_CONFIG_PATH}) not found. Using default values.")
+            global_config = GlobalConfig()
+        else:
+            raise
 
     func_parameters = inspect.signature(func).parameters
 

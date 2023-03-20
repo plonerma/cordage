@@ -10,6 +10,10 @@ class GlobalConfig:
     output_dir_param_name: str = "output_dir"
     trial_object_param_name: str = "cordage_trial"
 
-    output_dir_format: str = "{start_time:%Y-%m/%Y-%m-%d_%H-%M-%S}"
+    trial_id_format: str = "{start_time:%Y-%m-%d_%H-%M-%S}"
+    output_dir_format: str = "{start_time:%Y-%m}/{trial_id}"
 
     base_output_dir: Path = Path("results")
+
+    use_central_metadata_store: bool = True
+    central_metadata_store: Path = Path("~/.cordage")
