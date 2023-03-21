@@ -1,0 +1,5 @@
+{
+  "data.name": "mnist",
+  "data.version": 1,
+  "hyper_params.learning_rate": 2
+}

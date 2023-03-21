@@ -42,6 +42,27 @@ def test_simple_config(global_config):
     cordage.run(func, args=["--a", "1", "--b", "~"], global_config=global_config)
 
 
+def test_config_loading(global_config, resources_path):
+    def func(config: Config):
+        assert config.a == 1
+        assert isinstance(config.b, Path)
+        assert config.c == "some_other_value"
+
+    config_file = resources_path / "test_config_simple_a.json"
+
+    cordage.run(func, args=[str(config_file), "--c", "some_other_value"], global_config=global_config)
+
+
+def test_literal_fields(global_config, resources_path):
+    def func(config: Config):
+        pass
+
+    config_file = resources_path / "test_config_simple_b.json"
+
+    with pytest.raises(TypeError):
+        cordage.run(func, args=[str(config_file)], global_config=global_config)
+
+
 def test_help(capfd, global_config):
     def func(config: Config):
         """short_function_description
