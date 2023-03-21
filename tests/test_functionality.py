@@ -19,7 +19,7 @@ def test_metadata(global_config):
         trial_store.append(cordage_trial)
         sleep(1)
 
-    cordage.run(func, global_config=global_config)
+    cordage.run(func, args=[], global_config=global_config)
 
     trial = trial_store[0]
 
@@ -63,7 +63,7 @@ def test_trial_id_collision(global_config):
         trial_store.append(cordage_trial)
 
     for _ in range(1010):
-        cordage.run(func, global_config=global_config)
+        cordage.run(func, args=[], global_config=global_config)
 
     assert trial_store[7].trial_id.endswith("_07")
     assert trial_store[42].trial_id.endswith("_42")

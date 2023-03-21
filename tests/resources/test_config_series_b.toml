@@ -1,0 +1,11 @@
+"beta.a"="c_value"
+
+[alpha]
+a=-1
+
+[__series__]
+"beta.a"=["c1", "c2"]
+
+[__series__.alpha]
+a=[1, 2, 3]
+b=["b1"]

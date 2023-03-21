@@ -30,6 +30,8 @@ class GlobalConfig:
     trial_id_format: str = "{start_time:%Y-%m-%d_%H-%M-%S}"
     output_dir_format: str = "{start_time:%Y-%m}/{trial_id}"
 
+    series_specification_key = "__series__"
+
     param_names: ParameterNameConfig = ParameterNameConfig()
 
     file_tree: FileTreeConfig = FileTreeConfig()

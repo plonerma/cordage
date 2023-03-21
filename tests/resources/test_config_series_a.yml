@@ -1,0 +1,17 @@
+alpha:
+  a: -1
+beta.a: "c_value"
+
+__series__:
+  - alpha.a: 1
+    alpha.b: "b1"
+    beta.a: "c1"
+  - alpha:
+      a: 2
+      b: "b2"
+    beta:
+      a: "c2"
+  - alpha:
+      a: 3
+      b: "b3"
+    beta.a: "c3"

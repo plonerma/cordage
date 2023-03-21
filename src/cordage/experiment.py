@@ -1,13 +1,49 @@
 import json
 from contextlib import contextmanager
 from datetime import datetime
+from itertools import product
 from math import floor, log10
 from pathlib import Path
 from traceback import format_exc
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Generator, Generic, List, TypeVar, Union
 
-from .configuration import nested_serialization
 from .global_config import GlobalConfig
+from .util import flatten_dict, from_dict, logger, nested_serialization, to_dict
+
+T = TypeVar("T")
+
+
+class Series(Generic[T]):
+    def __init__(self, base_configuration: T, series_specification: Union[List[Dict], Dict[str, List], None] = None):
+        self.base_configuration: T = base_configuration
+        self.series_specification: Union[List[Dict], Dict[str, List], None] = series_specification
+
+    def get_trial_updates(self) -> Generator[Dict, None, None]:
+        if self.series_specification is None:
+            yield {}
+        elif isinstance(self.series_specification, list):
+            yield from self.series_specification
+
+        else:
+            keys, values = zip(*flatten_dict(self.series_specification).items())
+            for update_values in product(*values):
+                yield dict(zip(keys, update_values))
+
+    def __iter__(self) -> Generator[T, None, None]:
+        logger.debug("Iterating over trial configurations")
+        logger.debug("Base configuration: %s", str(self.base_configuration))
+        logger.debug("Series specification: %s", str(self.series_specification))
+
+        for trial_update in self.get_trial_updates():
+            logger.debug("Trial update: %s", str(trial_update))
+
+            conf_data: Dict[str, Any] = to_dict(self.base_configuration)
+
+            conf_data = flatten_dict(conf_data)
+
+            trial_conf_data = flatten_dict(trial_update, conf_data)
+
+            yield from_dict(type(self.base_configuration), trial_conf_data)
 
 
 class Trial:

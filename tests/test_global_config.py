@@ -1,7 +1,7 @@
 import dataclasses
 import json
 
-from cordage.configuration import to_dict
+from cordage.util import to_dict
 
 
 def test_global_config(global_config):
