@@ -27,10 +27,10 @@ class GlobalConfig:
 
     base_output_dir: Path = Path("results")
 
-    trial_id_format: str = "{start_time:%Y-%m-%d_%H-%M-%S}"
-    output_dir_format: str = "{start_time:%Y-%m}/{trial_id}"
+    experiment_id_format: str = "{start_time:%Y-%m-%d_%H-%M-%S}"
+    output_dir_format: str = "{experiment_id:%Y-%m}/{trial_id}"
 
-    series_specification_key = "__series__"
+    series_spec_key = "__series__"
 
     param_names: ParameterNameConfig = ParameterNameConfig()
 

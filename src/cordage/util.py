@@ -5,7 +5,7 @@ import sys
 from datetime import datetime, timedelta
 from os import PathLike
 from pathlib import Path
-from typing import Any, Callable, Dict, Mapping, Type, TypeVar, cast, get_args, get_origin
+from typing import Any, Callable, Dict, Mapping, Optional, Type, TypeVar, cast, get_args, get_origin
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -109,7 +109,9 @@ def write_config_file(path: PathLike, data: Mapping[str, Any]):
         return writer(data, conf_file)
 
 
-def flatten_dict(nested_dict, update_dict=None, prefix=None):
+def flatten_dict(
+    nested_dict: Dict[str, Any], update_dict: Optional[Dict[str, Any]] = None, prefix: Optional[str] = None
+) -> Dict[str, Any]:
     """Update (or create) a flat dictionary.
 
     :param nested_dict: The nested dictionary whose items will be used.
@@ -164,14 +166,10 @@ def from_dict(config_cls: Type[T], flat_data: Mapping) -> T:
             logger.debug("Field '%s' has type '%s'", field.name, field.type.__name__)
 
             for k, v in flat_data.items():
-                # Ingore all keys which do not start with the field name
-                if not k.startswith(field.name):
-                    continue
-
                 if k == field.name:
                     # Remember the path for loading the config file later
                     inner_conf_file = v
-                else:
+                elif k.startswith(field.name + "."):
                     # Normal field, remove the prefix and store the value
                     inner_dict[k.split(".", 1)[1]] = v
 

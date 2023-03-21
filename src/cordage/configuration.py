@@ -35,6 +35,8 @@ class ConfigurationParser(Generic[T]):
 
         self.parser = self.construct_config_parser(**kw)
 
+        self.description = kw.get("description")
+
     def parse_all(self, args=None) -> Series[T]:
         # construct parser
         conf_data: dict = vars(self.parser.parse_args(args))
@@ -45,7 +47,7 @@ class ConfigurationParser(Generic[T]):
 
             nested_loaded_data = read_config_file(config_path)
 
-            series_specification = nested_loaded_data.pop(self.global_config.series_specification_key, None)
+            series_spec = nested_loaded_data.pop(self.global_config.series_spec_key, None)
 
             new_conf_data = flatten_dict(nested_loaded_data)
             new_conf_data.update(conf_data)
@@ -53,11 +55,18 @@ class ConfigurationParser(Generic[T]):
             conf_data = new_conf_data
 
         else:
-            series_specification = None
+            series_spec = None
 
-        base_configuration: T = from_dict(self.main_config_cls, conf_data)
+        base_config: T = from_dict(self.main_config_cls, conf_data)
 
-        return Series(base_configuration, series_specification)
+        return Series(
+            base_config=base_config,
+            global_config=self.global_config,
+            series_spec=series_spec,
+            metadata={
+                "description": self.description,
+            },
+        )
 
     def construct_config_parser(self, **kw) -> argparse.ArgumentParser:
         """Construct an argparser for a given config class."""

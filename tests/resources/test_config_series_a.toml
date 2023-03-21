@@ -1,5 +1,5 @@
-alphas=2
-betas=5
+alphas=3
+betas=3
 
 "beta.a"="c_value"
 
@@ -7,8 +7,8 @@ betas=5
 a=-1
 
 [__series__]
-"beta.a"=["c1", "c2", "c3", "c4", "c5"]
+"beta.a"=["c1", "c2", "c3"]
 
 [__series__.alpha]
-a=[1, 2]
+a=[1, 2, 3]
 b=["b1"]
