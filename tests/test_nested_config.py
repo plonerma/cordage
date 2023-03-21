@@ -66,7 +66,7 @@ def test_mixed_nested_loading(global_config, resources_path):
         assert config.hyper_params.learning_rate == 2.0
         assert config.hyper_params.weight_decay == 0.0
 
-    config_file = resources_path / "test_config_nested_b.json"
+    config_file = resources_path / "test_config_nested_b.yaml"
 
     cordage.run(
         func,

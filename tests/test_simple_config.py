@@ -48,7 +48,7 @@ def test_config_loading(global_config, resources_path):
         assert isinstance(config.b, Path)
         assert config.c == "some_other_value"
 
-    config_file = resources_path / "test_config_simple_a.json"
+    config_file = resources_path / "test_config_simple_a.toml"
 
     cordage.run(func, args=[str(config_file), "--c", "some_other_value"], global_config=global_config)
 
