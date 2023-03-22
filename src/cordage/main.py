@@ -1,3 +1,4 @@
+import dataclasses
 import inspect
 from os import PathLike
 from pathlib import Path
@@ -31,6 +32,7 @@ def run(
     func: Callable,
     args=None,
     description=None,
+    config_cls=None,
     global_config: Union[PathLike, Dict, GlobalConfig, None] = DEFAULT_CONFIG_PATH,
 ) -> None:
     logger.debug("Loading global configuration.")
@@ -46,10 +48,17 @@ def run(
     func_parameters = inspect.signature(func).parameters
 
     # derive configuration class
-    try:
-        config_cls = func_parameters[global_config.param_names.config].annotation
-    except KeyError as exc:
-        raise TypeError(f"Callable must accept config in `{global_config.param_names.config}`.") from exc
+    if config_cls is None:
+        try:
+            config_cls = func_parameters[global_config.param_names.config].annotation
+        except KeyError as exc:
+            raise TypeError(f"Callable must accept config in `{global_config.param_names.config}`.") from exc
+
+    if not dataclasses.is_dataclass(config_cls):
+        raise TypeError(
+            f"Configuration class could not be derived: Either pass a configuration dataclass via `config_cls` or"
+            f"annotate the configuration parameter `{global_config.param_names.config}` with a dataclass."
+        )
 
     if description is None:
         if func.__doc__ is not None:
