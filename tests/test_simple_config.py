@@ -25,6 +25,7 @@ class Config:
     c: str = "test"
     d: int = field(default=1, metadata={"help": "correct_help_text"})
     e: Literal["a", "b", "c"] = "a"
+    f: bool = False
 
 
 def test_simple_config(global_config):

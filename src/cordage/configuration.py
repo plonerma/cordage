@@ -105,7 +105,7 @@ class ConfigurationParser(Generic[T]):
                 arg_name = field.name
 
             # Retrieve help text
-            help_text = field.metadata.get("help", param_doc.get(field.name))
+            help_text = field.metadata.get("help", param_doc.get(field.name, ""))
 
             # If the field is also a dataclass, recurse (nested config)
             if dataclasses.is_dataclass(field.type):
