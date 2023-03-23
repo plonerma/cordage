@@ -13,19 +13,51 @@ from .util import from_dict as config_from_dict
 from .util import logger
 
 USAGE_STR: str = "%(prog)s [-h] [config_file] <configuration options to overwrite>"
-DEFAULT_CONFIG_PATH: Path = Path("~/.config/cordage.json")
+
+PROJECT_SPECIFIC_CONFIG_PATH = Path("./cordage_configuration.json")
+GLOBAL_CONFIG_PATH: Path = Path("~/.config/cordage.json")
 
 
 def get_global_config(global_config: Union[PathLike, Dict, GlobalConfig, None]) -> GlobalConfig:
+    if global_config is not None:
+        if isinstance(global_config, dict):
+            # Dictionary given: create configuration based on these values
+            return config_from_dict(GlobalConfig, global_config)
+
+        elif isinstance(global_config, (str, Path)):
+            # Path given: load configuration file from this path
+            global_config = Path(global_config)
+            if not global_config.exists():
+                raise FileNotFoundError(f"Given cordage configuration path ({global_config}) does not exist.")
+
+            return config_from_dict(GlobalConfig, {".": global_config})
+
+        else:
+            # Remaining option: a GlobalConfig object was passed
+            if not isinstance(global_config, GlobalConfig):
+                raise TypeError("`global_config` must be one of PathLike, dict, cordage.GlobalConfig, None")
+            return global_config
+
     if global_config is None:
-        return GlobalConfig()
-    elif isinstance(global_config, dict):
-        return config_from_dict(GlobalConfig, global_config)
-    elif isinstance(global_config, (str, Path)):
-        return config_from_dict(GlobalConfig, {".": global_config})
-    else:
-        assert isinstance(global_config, GlobalConfig)
-        return global_config
+        # Go through config file order
+
+        # 1. Check if a project specific configuration file exists
+        if PROJECT_SPECIFIC_CONFIG_PATH.exists():
+            return config_from_dict(GlobalConfig, {".": PROJECT_SPECIFIC_CONFIG_PATH})
+
+        # 2. Check if a global configuration file exists
+        elif GLOBAL_CONFIG_PATH.exists():
+            return config_from_dict(GlobalConfig, {".": GLOBAL_CONFIG_PATH})
+
+        # 3. Use the default values
+        else:
+            logger.warning(
+                "No cordage configuration given. Using default values. Use a project specific (%s) or global"
+                "configuration (%s) to change the behavior.",
+                PROJECT_SPECIFIC_CONFIG_PATH,
+                GLOBAL_CONFIG_PATH,
+            )
+            return GlobalConfig()
 
 
 def run(
@@ -33,17 +65,11 @@ def run(
     args=None,
     description=None,
     config_cls=None,
-    global_config: Union[PathLike, Dict, GlobalConfig, None] = DEFAULT_CONFIG_PATH,
+    global_config: Union[PathLike, Dict, GlobalConfig, None] = None,
 ) -> None:
     logger.debug("Loading global configuration.")
-    try:
-        global_config = get_global_config(global_config)
-    except FileNotFoundError as exc:
-        if global_config == DEFAULT_CONFIG_PATH and exc.filename == str(DEFAULT_CONFIG_PATH):
-            logger.warning("Global configuration file (%s) not found. Using default values.", DEFAULT_CONFIG_PATH)
-            global_config = GlobalConfig()
-        else:
-            raise
+
+    global_config = get_global_config(global_config)
 
     func_parameters = inspect.signature(func).parameters
 
