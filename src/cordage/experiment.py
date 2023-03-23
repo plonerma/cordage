@@ -5,7 +5,7 @@ from itertools import count, product
 from math import ceil, floor, log10
 from pathlib import Path
 from traceback import format_exc
-from typing import Any, Dict, Generator, Generic, List, TypeVar, Union
+from typing import Any, Dict, Generator, Generic, List, Optional, TypeVar, Union
 
 from .global_config import GlobalConfig
 from .util import flatten_dict, from_dict, logger, nested_serialization, to_dict
@@ -191,6 +191,9 @@ class Series(Generic[T], Experiment):
 
         self.metadata["series_spec"] = series_spec
 
+        self.trials: Optional[List[Trial[T]]] = None
+        self.make_all_trials()
+
     @property
     def base_config(self) -> GlobalConfig:
         return self.metadata["base_config"]
@@ -223,11 +226,13 @@ class Series(Generic[T], Experiment):
 
     def __len__(self):
         if isinstance(self.series_spec, list):
+            assert self.trials is None or len(self.trials) == len(self.series_spec)
             return len(self.series_spec)
         elif isinstance(self.series_spec, dict):
             num_trials = 1
             for values in self.series_spec.values():
                 num_trials *= len(values)
+            assert self.trials is None or len(self.trials) == num_trials
             return num_trials
         else:
             return 1
@@ -243,13 +248,18 @@ class Series(Generic[T], Experiment):
 
         return Trial(**trial_metadata)
 
-    def __iter__(self) -> Generator[Trial[T], None, None]:
+    def make_all_trials(self):
         if self.series_spec is None:
             # single trial experiment
             logger.debug("Configuration yields a single experiment.")
-            yield self.make_trial(config=self.base_config)
+            self.metadata["is_series"] = False
+
+            self.trials = [self.make_trial(config=self.base_config)]
+
         else:
             logger.debug("The given configuration yields an experiment series with %d experiments.", len(self))
+            self.trials = []
+
             for i, trial_update in enumerate(self.get_trial_updates()):
                 conf_data: Dict[str, Any] = to_dict(self.base_config)
 
@@ -259,8 +269,22 @@ class Series(Generic[T], Experiment):
 
                 trial_config = from_dict(type(self.base_config), trial_config_data)
 
+                self.trials.append(self.make_trial(config=trial_config, trial_index=1))
+
+            self.metadata["is_series"] = True
+            self.metadata["num_trials"] = len(self.trials)
+
+    def __iter__(self) -> Generator[Trial[T], None, None]:
+        if self.series_spec is not None:
+            assert self.trials is not None
+
+            for i, trial in enumerate(self.trials):
                 trial_index = str(i + 1).zfill(ceil(log10(len(self))))
 
-                experiment_id = f"{self.experiment_id}/{trial_index}"
+                trial.metadata["series_id"] = self.experiment_id
+                trial.metadata["experiment_id"] = f"{self.experiment_id}/{trial_index}"
 
-                yield self.make_trial(config=trial_config, series_id=self.experiment_id, experiment_id=experiment_id)
+                yield trial
+        else:
+            assert self.trials is not None
+            yield self.trials[0]

@@ -1,0 +1,13 @@
+{
+  "alphas": 4,
+  "betas": 2,
+  "beta.a": "c_value",
+  "alpha.a": -1,
+  "__series__": {
+    "beta.a": ["c1", "c2"],
+    "alpha": {
+      "b": ["b1"],
+      "a": [1, 2, "three", 4]
+    }
+  }
+}

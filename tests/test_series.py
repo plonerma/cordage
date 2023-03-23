@@ -88,3 +88,19 @@ def test_more_trial_series(global_config, resources_path, letter):
         else:
             assert trial.experiment_id == f"experiment/{i+1:02}"
             assert trial.output_dir == global_config.base_output_dir / "experiment" / f"{i+1:02}"
+
+
+def test_invalid_trial_series(global_config, resources_path):
+    trial_store: List[cordage.Trial] = []
+
+    def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):
+        trial_store.append(cordage_trial)
+
+    config_file = resources_path / "test_config_series_invalid.json"
+
+    with pytest.raises(ValueError):
+        cordage.run(func, args=[str(config_file)], global_config=global_config)
+
+    assert (
+        not global_config.base_output_dir.exists()
+    ), "Since the configuration is invalid, the series should not be started and hence no output be created"

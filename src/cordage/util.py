@@ -158,6 +158,8 @@ def from_dict(config_cls: Type[T], flat_data: Mapping) -> T:
                 # If the field is required, raise a KeyError, otherwise ignore
                 if is_field_required(field):
                     raise KeyError(f"Field {field.name} in {config_cls} is required, but was not specified.") from exc
+            except ValueError as exc:
+                raise ValueError(f"invalid value for {config_cls.__name__}.{field.name}: {exc.args[0]}") from exc
         else:
             # Field stores a dataclass instances
             inner_dict = dict()
@@ -249,6 +251,9 @@ def deserialize_value(value: Any, cls: Type):
 
         elif issubclass(cls, float):
             return float(value)
+
+        elif issubclass(cls, int):
+            return int(value)
 
         elif issubclass(cls, datetime):
             return datetime.fromisoformat(value)
