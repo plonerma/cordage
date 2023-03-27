@@ -19,7 +19,7 @@ class FileTreeConfig:
 
 @dataclass
 class CentralMetadataConfig:
-    use: bool = True
+    use: bool = False
     path: Path = Path("~/.cordage").expanduser()
 
 
