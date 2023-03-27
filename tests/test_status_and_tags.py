@@ -64,6 +64,11 @@ def test_trial_series_list(global_config, resources_path):
 
     all_experiments = Experiment.all_from_path(series_path)
 
+    # experiments are sorted
+    assert (all_experiments[0].output_dir < all_experiments[1].output_dir) and (
+        all_experiments[1].output_dir < all_experiments[2].output_dir
+    )
+
     for e in all_experiments:
         print(e.experiment_id, e.tags)
 
