@@ -64,6 +64,11 @@ class Experiment:
         return self.output_dir / "cordage.json"
 
     @property
+    def central_annotations_path(self):
+        rel_path = self.output_dir.relative_to(self.global_config.base_output_dir)
+        return self.global_config.central_metadata.path / rel_path / "annotations.json"
+
+    @property
     def annotations_path(self):
         return self.output_dir / "annotations.json"
 
@@ -163,6 +168,10 @@ class Experiment:
     def save_annotations(self):
         with open(self.annotations_path, "w", encoding="utf-8") as fp:
             json.dump(self.annotations, fp)
+
+        if self.global_config.central_metadata.use and self.central_annotations_path.parent.exists():
+            with open(self.central_annotations_path, "w", encoding="utf-8") as fp:
+                json.dump(self.annotations, fp)
 
     @contextmanager
     def run(self):

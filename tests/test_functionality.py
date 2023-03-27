@@ -47,6 +47,10 @@ def test_metadata(global_config):
 
     assert central_metadata.exists()
 
+    central_annotations = global_config.central_metadata.path / rel_dir / "annotations.json"
+
+    assert central_annotations.exists()
+
     with open(central_metadata, encoding="utf-8") as f:
         metadata = json.load(f)
 
