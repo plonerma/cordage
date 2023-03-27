@@ -15,6 +15,8 @@ class Config:
 def test_metadata(global_config):
     trial_store: List[cordage.Trial] = []
 
+    global_config.central_metadata.use = True
+
     def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):
         trial_store.append(cordage_trial)
         sleep(1)
