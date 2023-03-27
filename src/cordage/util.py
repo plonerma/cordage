@@ -5,7 +5,7 @@ import sys
 from datetime import datetime, timedelta
 from os import PathLike
 from pathlib import Path
-from typing import Any, Callable, Dict, Mapping, Optional, Type, TypeVar, cast, get_args, get_origin
+from typing import Any, Callable, Dict, List, Mapping, Optional, Type, TypeVar, cast, get_args, get_origin
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -130,6 +130,28 @@ def flatten_dict(
             update_dict[flat_k] = v
 
     return update_dict
+
+
+def unflatten_dict(flat_dict: Dict[str, Any]) -> Dict[str, Any]:
+    nested_dict: Dict[str, Any] = {}
+    dicts_to_nest: List[str] = []
+
+    for k, v in flat_dict.items():
+        if "." not in k:
+            nested_dict[k] = v
+
+        else:
+            prefix, remainder = k.split(".", 1)
+            if prefix not in nested_dict:
+                nested_dict[prefix] = {}
+                dicts_to_nest.append(prefix)
+
+            nested_dict[prefix][remainder] = v
+
+    for k in dicts_to_nest:
+        nested_dict[k] = unflatten_dict(nested_dict[k])
+
+    return nested_dict
 
 
 def is_field_required(field: dataclasses.Field) -> bool:

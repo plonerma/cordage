@@ -7,10 +7,10 @@ from math import ceil, floor, log10
 from os import PathLike
 from pathlib import Path
 from traceback import format_exc
-from typing import Any, Container, Dict, Generator, Generic, Iterable, List, Optional, TypeVar, Union
+from typing import Any, Container, Dict, Generator, Generic, Iterable, List, Optional, Set, TypeVar, Union, cast
 
 from .global_config import GlobalConfig
-from .util import flatten_dict, from_dict, logger, nested_serialization, to_dict
+from .util import flatten_dict, from_dict, logger, nested_serialization, to_dict, unflatten_dict
 
 T = TypeVar("T")
 
@@ -246,11 +246,22 @@ class Experiment:
         results_path,
     ) -> List["Experiment"]:
         """Load all experiments from the results_path."""
-        return list(
-            sorted(
-                [cls.from_file(p.parent) for p in results_path.glob("*/cordage.json")], key=lambda exp: exp.output_dir
-            )
-        )
+
+        seen_dirs: Set[Path] = set()
+        experiments = []
+
+        for p in results_path.rglob("*/cordage.json"):
+            path = p.parent
+
+            if path.parent in seen_dirs:
+                # we already encountered a parent experiment (series)
+                continue
+
+            seen_dirs.add(path)
+
+            experiments.append(cls.from_file(p.parent))
+
+        return list(sorted(experiments, key=lambda exp: exp.output_dir))
 
 
 class Trial(Generic[T], Experiment):
@@ -293,8 +304,8 @@ class Trial(Generic[T], Experiment):
 
 
 class Series(Generic[T], Experiment):
-    def __init__(self, series_spec: Union[List[Dict], Dict[str, List], None] = None, **kw):
-        super().__init__(**kw)
+    def __init__(self, base_config: T, series_spec: Union[List[Dict], Dict[str, List], None] = None, **kw):
+        super().__init__(base_config=base_config, **kw)
 
         if isinstance(series_spec, list):
             for config_update in series_spec:
@@ -314,7 +325,7 @@ class Series(Generic[T], Experiment):
         self.make_all_trials()
 
     @property
-    def base_config(self) -> GlobalConfig:
+    def base_config(self) -> T:
         return self.metadata["base_config"]
 
     @property
@@ -380,13 +391,21 @@ class Series(Generic[T], Experiment):
             self.trials = []
 
             for i, trial_update in enumerate(self.get_trial_updates()):
-                conf_data: Dict[str, Any] = to_dict(self.base_config)
+                conf_data: Dict[str, Any]
+                if isinstance(self.base_config, dict):
+                    conf_data = self.base_config
+                else:
+                    conf_data = to_dict(self.base_config)
 
                 conf_data = flatten_dict(conf_data)
 
                 trial_config_data = flatten_dict(trial_update, conf_data)
 
-                trial_config = from_dict(type(self.base_config), trial_config_data)
+                trial_config: T
+                if isinstance(self.base_config, dict):
+                    trial_config = cast(T, unflatten_dict(trial_config_data))
+                else:
+                    trial_config = cast(T, from_dict(type(self.base_config), trial_config_data))
 
                 self.trials.append(self.make_trial(config=trial_config, trial_index=1))
 

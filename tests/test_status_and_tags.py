@@ -37,7 +37,9 @@ class Config:
 
 
 def test_trial_series_list(global_config, resources_path):
-    series_path = global_config.base_output_dir / "experiment"
+    global_config.output_dir_format = "nested/structure/{experiment_id}"
+
+    series_path = global_config.base_output_dir / "nested" / "structure" / "experiment"
 
     def load_filtered(status=None, tag=None):
         return [exp for exp in Experiment.all_from_path(series_path) if exp.has_status(status) and exp.has_tag(tag)]
@@ -49,9 +51,9 @@ def test_trial_series_list(global_config, resources_path):
         if config.alpha.a == 2:
             cordage_trial.add_tag("second")
 
+            assert len(load_filtered()) == 2
             assert len(load_filtered(status="complete")) == 1
             assert len(load_filtered(status=("complete", "running"))) == 2
-            assert len(load_filtered()) == 2
 
             cordage_trial.comment = "This is #not_the_first(?) run."
 
@@ -80,3 +82,8 @@ def test_trial_series_list(global_config, resources_path):
     assert len(load_filtered(tag="not_the_first")) == 2
     assert len(load_filtered(tag=("not_the_first", "the_first"), status="complete")) == 2
     assert len(load_filtered(tag="not_the_first", status="complete")) == 1
+
+    print("-----")
+
+    # Since we only load top level experiments, only the series should show up
+    assert len(Experiment.all_from_path(global_config.base_output_dir)) == 1
