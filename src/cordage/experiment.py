@@ -1,11 +1,13 @@
 import json
+import re
 from contextlib import contextmanager
 from datetime import datetime
 from itertools import count, product
 from math import ceil, floor, log10
+from os import PathLike
 from pathlib import Path
 from traceback import format_exc
-from typing import Any, Dict, Generator, Generic, List, Optional, TypeVar, Union
+from typing import Any, Container, Dict, Generator, Generic, Iterable, List, Optional, TypeVar, Union
 
 from .global_config import GlobalConfig
 from .util import flatten_dict, from_dict, logger, nested_serialization, to_dict
@@ -14,8 +16,39 @@ T = TypeVar("T")
 
 
 class Experiment:
+    TAG_PATTERN = re.compile(r"\B#(\w*[a-zA-Z]+\w*)")
+
     def __init__(self, **kw):
         self.metadata: Dict[str, Any] = {"status": "waiting", **kw}
+        self.annotations = {}
+
+    @property
+    def tags(self):
+        tags = set(self.explicit_tags)
+
+        # implicit tags
+        tags.update(re.findall(self.TAG_PATTERN, self.comment))
+
+        return list(tags)
+
+    @property
+    def explicit_tags(self):
+        if "tags" not in self.annotations:
+            self.annotations["tags"] = []
+        return self.annotations["tags"]
+
+    def add_tag(self, *tags: Iterable):
+        for t in tags:
+            if t not in self.explicit_tags:
+                self.explicit_tags.append(t)
+
+    @property
+    def comment(self):
+        return self.annotations.get("comment", "")
+
+    @comment.setter
+    def comment(self, value):
+        self.annotations["comment"] = value
 
     @property
     def global_config(self):
@@ -31,6 +64,15 @@ class Experiment:
         return self.output_dir / "cordage.json"
 
     @property
+    def central_annotations_path(self):
+        rel_path = self.output_dir.relative_to(self.global_config.base_output_dir)
+        return self.global_config.central_metadata.path / rel_path / "annotations.json"
+
+    @property
+    def annotations_path(self):
+        return self.output_dir / "annotations.json"
+
+    @property
     def output_dir(self) -> Path:
         try:
             return self.metadata["output_dir"]
@@ -44,11 +86,20 @@ class Experiment:
         except KeyError:
             raise RuntimeError(f"{self.__class__.__name__} has not been started yet.")
 
+    @property
+    def status(self) -> str:
+        return self.metadata["status"]
+
+    @status.setter
+    def status(self, value: str):
+        self.metadata["status"] = value
+
     def start(self):
         """Start the execution of an experiment.
 
         Set start time, create output directory, registers run, etc.
         """
+        assert self.status == "waiting", f"{self.__class__.__name__} has already been started."
         self.metadata.update(start_time=datetime.now(), status="running")
         self.create_output_dir()
         self.save_metadata()
@@ -66,7 +117,7 @@ class Experiment:
         )
         self.save_metadata()
 
-    def output_dir_from_id(self, experiment_id):
+    def output_dir_from_id(self, experiment_id: str):
         metadata = {**self.metadata, "experiment_id": experiment_id}
 
         return self.global_config.base_output_dir / self.global_config.output_dir_format.format(**metadata)
@@ -107,6 +158,9 @@ class Experiment:
         with open(self.metadata_path, "w", encoding="utf-8") as fp:
             json.dump(md_dict, fp)
 
+        with open(self.annotations_path, "w", encoding="utf-8") as fp:
+            json.dump(self.annotations, fp)
+
         if self.global_config.central_metadata.use:
             # rel exeriment path
             central_md_path = self.central_metadata_path
@@ -114,6 +168,9 @@ class Experiment:
 
             with central_md_path.open("w", encoding="utf-8") as fp:
                 json.dump(md_dict, fp)
+
+            with open(self.central_annotations_path, "w", encoding="utf-8") as fp:
+                json.dump(self.annotations, fp)
 
     @contextmanager
     def run(self):
@@ -133,6 +190,74 @@ class Experiment:
             self.end(status="failed")
             raise
 
+    @classmethod
+    def from_file(cls, path: PathLike):
+        path = Path(path)
+        if not path.name == "cordage.json":
+            path = path / "cordage.json"
+
+        with path.open("r", encoding="utf-8") as fp:
+            data = json.load(fp)
+
+        data["global_config"] = from_dict(GlobalConfig, flatten_dict(data["global_config"]))
+
+        data["output_dir"] = Path(data["output_dir"])
+
+        if data["output_dir"] != path.parent:
+            logger.warning(
+                f"Output dir is not correct anymore. Changing it to the actual directory"
+                f"({data['output_dir']} -> {path.parent})"
+            )
+            data["output_dir"] = path.parent
+
+        experiment: Experiment
+
+        if "series_spec" not in data:
+            experiment = Trial(**data)
+        else:
+            experiment = Series(**data)
+
+        annotation_path: Path = experiment.output_dir / "annotations.json"
+        if annotation_path.exists():
+            with annotation_path.open("r", encoding="utf-8") as fp:
+                experiment.annotations = json.load(fp)
+
+        return experiment
+
+    def has_tag(self, tag: Union[Container[str], str, None] = None):
+        if tag is None:
+            return True
+        elif isinstance(tag, str):
+            return tag in self.tags
+        else:
+            return any(t in tag for t in self.tags)
+
+    def has_status(self, status: Union[Container[str], str, None] = None):
+        if status is None:
+            return True
+        elif isinstance(status, str):
+            return self.status == status
+        else:
+            return self.status in status
+
+    @classmethod
+    def all_from_path(
+        cls,
+        results_path,
+        status: Union[Container[str], str, None] = None,
+        tag: Union[Container[str], str, None] = None,
+    ) -> Iterable["Experiment"]:
+        """Load all experiments from the results_path.
+
+        :param status: Only yield experiments with this status.
+        :param tag: Only yield experiments with this status.
+        """
+        for p in results_path.glob("*/cordage.json"):
+            experiment = cls.from_file(p.parent)
+
+            if experiment.has_status(status) and experiment.has_tag(tag):
+                yield experiment
+
 
 class Trial(Generic[T], Experiment):
     @property
@@ -142,12 +267,12 @@ class Trial(Generic[T], Experiment):
     def end(self, *args, **kwargs):
         super().end(*args, **kwargs)
 
-        self.save_file_tree()
-
-    def save_file_tree(self):
         if self.global_config.central_metadata.use:
-            with (self.central_metadata_path.parent / "files.json").open("w", encoding="utf-8") as fp:
-                json.dump(self.produce_file_tree(self.output_dir), fp)
+            self.save_file_tree(self.central_metadata_path.parent / "files.json")
+
+    def save_file_tree(self, save_path):
+        with save_path.open("w", encoding="utf-8") as fp:
+            json.dump(self.produce_file_tree(self.output_dir), fp)
 
     def produce_file_tree(self, path, level=0):
         max_level = self.global_config.file_tree.max_level
