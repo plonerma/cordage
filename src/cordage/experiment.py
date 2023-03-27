@@ -103,6 +103,7 @@ class Experiment:
         self.metadata.update(start_time=datetime.now(), status="running")
         self.create_output_dir()
         self.save_metadata()
+        self.save_annotations()
 
     def end(self, status: str = "undecided"):
         """End the execution of an experiment.
@@ -116,6 +117,7 @@ class Experiment:
             status=status,
         )
         self.save_metadata()
+        self.save_annotations()
 
     def output_dir_from_id(self, experiment_id: str):
         metadata = {**self.metadata, "experiment_id": experiment_id}
@@ -154,22 +156,23 @@ class Experiment:
     def save_metadata(self):
         md_dict = nested_serialization(self.metadata)
 
-        # save metadata in output dir
         with open(self.metadata_path, "w", encoding="utf-8") as fp:
             json.dump(md_dict, fp)
 
+        if self.global_config.central_metadata.use:
+            self.central_metadata_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with self.central_metadata_path.open("w", encoding="utf-8") as fp:
+                json.dump(md_dict, fp)
+
+    def save_annotations(self):
         with open(self.annotations_path, "w", encoding="utf-8") as fp:
             json.dump(self.annotations, fp)
 
         if self.global_config.central_metadata.use:
-            # rel exeriment path
-            central_md_path = self.central_metadata_path
-            central_md_path.parent.mkdir(parents=True, exist_ok=True)
+            self.central_annotations_path.parent.mkdir(parents=True, exist_ok=True)
 
-            with central_md_path.open("w", encoding="utf-8") as fp:
-                json.dump(md_dict, fp)
-
-            with open(self.central_annotations_path, "w", encoding="utf-8") as fp:
+            with self.central_annotations_path.open("w", encoding="utf-8") as fp:
                 json.dump(self.annotations, fp)
 
     @contextmanager
@@ -217,9 +220,9 @@ class Experiment:
         else:
             experiment = Series(**data)
 
-        annotation_path: Path = experiment.output_dir / "annotations.json"
-        if annotation_path.exists():
-            with annotation_path.open("r", encoding="utf-8") as fp:
+        annotations_path: Path = experiment.output_dir / "annotations.json"
+        if annotations_path.exists():
+            with annotations_path.open("r", encoding="utf-8") as fp:
                 experiment.annotations = json.load(fp)
 
         return experiment
