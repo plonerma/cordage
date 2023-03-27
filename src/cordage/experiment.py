@@ -191,7 +191,7 @@ class Experiment:
             raise
 
     @classmethod
-    def from_file(cls, path: PathLike):
+    def from_path(cls, path: PathLike):
         path = Path(path)
         if not path.name == "cordage.json":
             path = path / "cordage.json"
@@ -259,7 +259,7 @@ class Experiment:
 
             seen_dirs.add(path)
 
-            experiments.append(cls.from_file(p.parent))
+            experiments.append(cls.from_path(p.parent))
 
         return list(sorted(experiments, key=lambda exp: exp.output_dir))
 
