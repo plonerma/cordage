@@ -244,23 +244,13 @@ class Experiment:
     def all_from_path(
         cls,
         results_path,
-        status: Union[Container[str], str, None] = None,
-        tag: Union[Container[str], str, None] = None,
     ) -> List["Experiment"]:
-        """Load all experiments from the results_path.
-
-        :param status: Only yield experiments with this status.
-        :param tag: Only yield experiments with this status.
-        """
-        experiments = []
-
-        for p in results_path.glob("*/cordage.json"):
-            experiment = cls.from_file(p.parent)
-
-            if experiment.has_status(status) and experiment.has_tag(tag):
-                experiments.append(experiment)
-
-        return list(sorted(experiments, key=lambda exp: exp.output_dir))
+        """Load all experiments from the results_path."""
+        return list(
+            sorted(
+                [cls.from_file(p.parent) for p in results_path.glob("*/cordage.json")], key=lambda exp: exp.output_dir
+            )
+        )
 
 
 class Trial(Generic[T], Experiment):
