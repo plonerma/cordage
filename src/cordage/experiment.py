@@ -86,6 +86,12 @@ class Experiment:
         except KeyError:
             raise RuntimeError(f"{self.__class__.__name__} has not been started yet.")
 
+    def __repr__(self):
+        if "experiment_id" in self.metadata:
+            return f"{self.__class__.__name__} (id: {self.experiment_id}, status: {self.status})"
+        else:
+            return f"{self.__class__.__name__} (status: {self.status})"
+
     @property
     def status(self) -> str:
         return self.metadata["status"]
