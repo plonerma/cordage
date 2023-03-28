@@ -44,6 +44,14 @@ class Metadata:
     def is_series(self):
         return isinstance(self.configuration, dict) and "series_spec" in self.configuration
 
+    def to_dict(self):
+        return nested_serialization(self)
+
+    @classmethod
+    def from_dict(cls, data):
+        flat_data = flatten_dict(data)
+        return from_dict(cls, flat_data)
+
 
 class MetadataStore:
     def __init__(self, metadata: Optional[Metadata] = None, /, global_config: Optional[GlobalConfig] = None, **kw):
@@ -83,7 +91,7 @@ class MetadataStore:
         return self.output_dir / "cordage.json"
 
     def save_metadata(self):
-        md_dict = nested_serialization(self.metadata)
+        md_dict = self.metadata.to_dict()
 
         with open(self.metadata_path, "w", encoding="utf-8") as fp:
             json.dump(md_dict, fp)
@@ -101,8 +109,7 @@ class MetadataStore:
             path = path / "cordage.json"
 
         with path.open("r", encoding="utf-8") as fp:
-            flat_data = flatten_dict(json.load(fp))
-            metadata = from_dict(Metadata, flat_data)
+            metadata = Metadata.from_dict(json.load(fp))
 
         if metadata.output_dir != path.parent:
             logger.warning(
