@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict, Union
 
 from docstring_parser import parse as parse_docstring
 
-from .configuration import ConfigurationParser
+from .config_parser import ConfigurationParser
 from .experiment import Series, Trial
 from .global_config import GlobalConfig
 from .util import from_dict as config_from_dict
