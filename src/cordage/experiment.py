@@ -7,7 +7,7 @@ from math import ceil, floor, log10
 from os import PathLike
 from pathlib import Path
 from traceback import format_exc
-from typing import Any, Container, Dict, Generator, Generic, Iterable, List, Optional, Set, TypeVar, Union, cast
+from typing import Any, Dict, Generator, Generic, Iterable, List, Optional, Set, TypeVar, Union, cast
 
 from .global_config import GlobalConfig
 from .util import flatten_dict, from_dict, logger, nested_serialization, to_dict, unflatten_dict
@@ -225,21 +225,11 @@ class Experiment:
 
         return experiment
 
-    def has_tag(self, tag: Union[Container[str], str, None] = None):
-        if tag is None:
-            return True
-        elif isinstance(tag, str):
-            return tag in self.tags
-        else:
-            return any(t in tag for t in self.tags)
+    def has_tag(self, *tags: str):
+        return len(tags) == 0 or any(t in tags for t in self.tags)
 
-    def has_status(self, status: Union[Container[str], str, None] = None):
-        if status is None:
-            return True
-        elif isinstance(status, str):
-            return self.status == status
-        else:
-            return self.status in status
+    def has_status(self, *status: str):
+        return len(status) == 0 or self.status in status
 
     @classmethod
     def all_from_path(
