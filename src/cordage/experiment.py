@@ -383,25 +383,29 @@ class Series(Generic[T], Experiment):
             assert len(kw) == 0 and base_config is None and series_spec is None
             super().__init__(metadata)
         else:
-            super().__init__(configuration={}, **kw)
+            super().__init__(configuration={"base_config": base_config, "series_spec": series_spec}, **kw)
 
-            if isinstance(series_spec, list):
-                for config_update in series_spec:
-                    assert isinstance(config_update, dict)
-
-            elif isinstance(series_spec, dict):
-                series_spec = flatten_dict(series_spec)
-
-                for values in series_spec.values():
-                    assert isinstance(values, list)
-            else:
-                assert series_spec is None
-
-            self.metadata.configuration["series_spec"] = series_spec
-            self.metadata.configuration["base_config"] = base_config
+        self.validate_series_spec()
 
         self.trials: Optional[List[Trial[T]]] = None
         self.make_all_trials()
+
+    def validate_series_spec(self):
+        series_spec = self.series_spec
+
+        if isinstance(series_spec, list):
+            for config_update in series_spec:
+                assert isinstance(config_update, dict)
+
+        elif isinstance(series_spec, dict):
+            series_spec = flatten_dict(series_spec)
+
+            for values in series_spec.values():
+                assert isinstance(values, list)
+        else:
+            assert series_spec is None
+
+        self.metadata.configuration["series_spec"] = series_spec
 
     @property
     def base_config(self) -> T:
