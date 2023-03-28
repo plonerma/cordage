@@ -15,11 +15,49 @@ from .util import flatten_dict, from_dict, logger, nested_serialization, to_dict
 T = TypeVar("T")
 
 
-class Experiment:
+class MetadataStore:
+    def __init__(self, global_config, **kw):
+        self.metadata: Dict[str, Any] = {"global_config": global_config, **kw}
+
+    @property
+    def global_config(self):
+        return self.metadata["global_config"]
+
+    @property
+    def output_dir(self) -> Path:
+        try:
+            return self.metadata["output_dir"]
+        except KeyError as exc:
+            raise RuntimeError(f"{self.__class__.__name__} has not been started yet.") from exc
+
+    @property
+    def central_metadata_path(self):
+        rel_path = self.output_dir.relative_to(self.global_config.base_output_dir)
+        return self.global_config.central_metadata.path / rel_path / "metadata.json"
+
+    @property
+    def metadata_path(self):
+        return self.output_dir / "cordage.json"
+
+    def save_metadata(self):
+        md_dict = nested_serialization(self.metadata)
+
+        with open(self.metadata_path, "w", encoding="utf-8") as fp:
+            json.dump(md_dict, fp)
+
+        if self.global_config.central_metadata.use:
+            self.central_metadata_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with self.central_metadata_path.open("w", encoding="utf-8") as fp:
+                json.dump(md_dict, fp)
+
+
+class Annotatable(MetadataStore):
     TAG_PATTERN = re.compile(r"\B#(\w*[a-zA-Z]+\w*)")
 
     def __init__(self, **kw):
-        self.metadata: Dict[str, Any] = {"status": "waiting", **kw}
+        super().__init__(**kw)
+
         self.annotations = {}
 
     @property
@@ -42,6 +80,9 @@ class Experiment:
             if t not in self.explicit_tags:
                 self.explicit_tags.append(t)
 
+    def has_tag(self, *tags: str):
+        return len(tags) == 0 or any(t in tags for t in self.tags)
+
     @property
     def comment(self):
         return self.annotations.get("comment", "")
@@ -49,19 +90,6 @@ class Experiment:
     @comment.setter
     def comment(self, value):
         self.annotations["comment"] = value
-
-    @property
-    def global_config(self):
-        return self.metadata["global_config"]
-
-    @property
-    def central_metadata_path(self):
-        rel_path = self.output_dir.relative_to(self.global_config.base_output_dir)
-        return self.global_config.central_metadata.path / rel_path / "metadata.json"
-
-    @property
-    def metadata_path(self):
-        return self.output_dir / "cordage.json"
 
     @property
     def central_annotations_path(self):
@@ -72,19 +100,27 @@ class Experiment:
     def annotations_path(self):
         return self.output_dir / "annotations.json"
 
-    @property
-    def output_dir(self) -> Path:
-        try:
-            return self.metadata["output_dir"]
-        except KeyError:
-            raise RuntimeError(f"{self.__class__.__name__} has not been started yet.")
+    def save_annotations(self):
+        with open(self.annotations_path, "w", encoding="utf-8") as fp:
+            json.dump(self.annotations, fp)
+
+        if self.global_config.central_metadata.use and self.central_annotations_path.parent.exists():
+            with open(self.central_annotations_path, "w", encoding="utf-8") as fp:
+                json.dump(self.annotations, fp)
+
+
+class Experiment(Annotatable):
+    def __init__(self, **kw):
+        kw = {"status": "waiting", **kw}
+
+        super().__init__(**kw)
 
     @property
     def experiment_id(self):
         try:
             return self.metadata["experiment_id"]
-        except KeyError:
-            raise RuntimeError(f"{self.__class__.__name__} has not been started yet.")
+        except KeyError as exc:
+            raise RuntimeError(f"{self.__class__.__name__} has not been started yet.") from exc
 
     def __repr__(self):
         if "experiment_id" in self.metadata:
@@ -99,6 +135,9 @@ class Experiment:
     @status.setter
     def status(self, value: str):
         self.metadata["status"] = value
+
+    def has_status(self, *status: str):
+        return len(status) == 0 or self.status in status
 
     def start(self):
         """Start the execution of an experiment.
@@ -146,6 +185,7 @@ class Experiment:
 
     def create_output_dir(self):
         if "output_dir" in self.metadata:
+            assert self.output_dir.exists(), f"Output directory given ({self.output_dir}), but it does not exist."
             return self.output_dir
 
         if "experiment_id" not in self.metadata:
@@ -158,26 +198,6 @@ class Experiment:
 
     def handle_exception(self, exc):
         self.metadata["exception"] = {"short": repr(exc), "traceback": format_exc()}
-
-    def save_metadata(self):
-        md_dict = nested_serialization(self.metadata)
-
-        with open(self.metadata_path, "w", encoding="utf-8") as fp:
-            json.dump(md_dict, fp)
-
-        if self.global_config.central_metadata.use:
-            self.central_metadata_path.parent.mkdir(parents=True, exist_ok=True)
-
-            with self.central_metadata_path.open("w", encoding="utf-8") as fp:
-                json.dump(md_dict, fp)
-
-    def save_annotations(self):
-        with open(self.annotations_path, "w", encoding="utf-8") as fp:
-            json.dump(self.annotations, fp)
-
-        if self.global_config.central_metadata.use and self.central_annotations_path.parent.exists():
-            with open(self.central_annotations_path, "w", encoding="utf-8") as fp:
-                json.dump(self.annotations, fp)
 
     @contextmanager
     def run(self):
@@ -230,12 +250,6 @@ class Experiment:
                 experiment.annotations = json.load(fp)
 
         return experiment
-
-    def has_tag(self, *tags: str):
-        return len(tags) == 0 or any(t in tags for t in self.tags)
-
-    def has_status(self, *status: str):
-        return len(status) == 0 or self.status in status
 
     @classmethod
     def all_from_path(
@@ -405,7 +419,7 @@ class Series(Generic[T], Experiment):
                 else:
                     trial_config = cast(T, from_dict(type(self.base_config), trial_config_data))
 
-                self.trials.append(self.make_trial(config=trial_config, trial_index=1))
+                self.trials.append(self.make_trial(config=trial_config, trial_index=(i + 1)))
 
             self.metadata["is_series"] = True
             self.metadata["num_trials"] = len(self.trials)
