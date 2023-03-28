@@ -5,7 +5,7 @@ import sys
 from datetime import datetime, timedelta
 from os import PathLike
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Optional, Type, TypeVar, cast, get_args, get_origin
+from typing import Any, Callable, Dict, List, Mapping, Optional, Type, TypeVar, Union, cast, get_args, get_origin
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -158,12 +158,20 @@ def is_field_required(field: dataclasses.Field) -> bool:
     return field.default is dataclasses.MISSING and field.default_factory is dataclasses.MISSING
 
 
-def from_dict(config_cls: Type[T], flat_data: Mapping) -> T:
+def build_inner_dict(flat_dict: Dict[str, Any], key: str) -> Dict[str, Any]:
+    inner_dict = dict()
+
+    for k, v in flat_dict.items():
+        if k.startswith(key + "."):
+            # Remove the prefix and store the value
+            inner_dict[k.split(".", 1)[1]] = v
+
+    return inner_dict
+
+
+def from_dict(config_cls: Type[T], flat_data: Dict[str, Any]) -> T:
     """Create a (potentially nested) configuration object from a mapping."""
     assert dataclasses.is_dataclass(config_cls)
-
-    logger.debug("Constructing '%s'", config_cls.__name__)
-    logger.debug(str(flat_data))
 
     config_kw = dict()
 
@@ -177,25 +185,22 @@ def from_dict(config_cls: Type[T], flat_data: Mapping) -> T:
             try:
                 config_kw[field.name] = deserialize_value(flat_data[field.name], field.type)
             except KeyError as exc:
+                if any(k.startswith(field.name + ".") for k in flat_data.keys()):
+                    value = build_inner_dict(flat_data, field.name)
+                    value = unflatten_dict(value)
+
+                    config_kw[field.name] = deserialize_value(value, field.type)
+
                 # If the field is required, raise a KeyError, otherwise ignore
-                if is_field_required(field):
+                elif is_field_required(field):
                     raise KeyError(f"Field {field.name} in {config_cls} is required, but was not specified.") from exc
             except ValueError as exc:
                 raise ValueError(f"invalid value for {config_cls.__name__}.{field.name}: {exc.args[0]}") from exc
         else:
             # Field stores a dataclass instances
-            inner_dict = dict()
-            inner_conf_file = None
+            inner_conf_file = flat_data.pop(field.name, None)
 
-            logger.debug("Field '%s' has type '%s'", field.name, field.type.__name__)
-
-            for k, v in flat_data.items():
-                if k == field.name:
-                    # Remember the path for loading the config file later
-                    inner_conf_file = v
-                elif k.startswith(field.name + "."):
-                    # Normal field, remove the prefix and store the value
-                    inner_dict[k.split(".", 1)[1]] = v
+            inner_dict = build_inner_dict(flat_data, field.name)
 
             if inner_conf_file:
                 # load from configuration path first
@@ -255,19 +260,51 @@ def serialize_value(value):
 
 
 def deserialize_value(value: Any, cls: Type):
-    if not inspect.isclass(cls) and get_origin(cls) is Literal:
-        # Value must be from this set
-        choices = get_args(cls)
-        arg_type = type(choices[0])
+    if not inspect.isclass(cls):
+        origin = get_origin(cls)
 
-        if any((not isinstance(c, arg_type) for c in choices)):
-            raise TypeError(f"If Literal is used, all values must be of the same type ({cls}).")
+        if origin is Literal:
+            # Value must be from this set
+            choices = get_args(cls)
+            arg_type = type(choices[0])
 
-        if value not in choices:
-            raise TypeError(f"Value {value} not in {cls}")
+            if any((not isinstance(c, arg_type) for c in choices)):
+                raise TypeError(f"If Literal is used, all values must be of the same type ({cls}).")
+
+            if value not in choices:
+                raise TypeError(f"Value {value} not in {cls}")
+
+        elif origin is Union:
+            args = get_args(cls)
+
+            if value is None:
+                if None in args or type(None) in args:
+                    return None
+                else:
+                    raise ValueError(f"Cannot deserialize None as {cls}")
+            else:
+                for arg in args:
+                    try:
+                        return deserialize_value(value, arg)
+                    except (TypeError, ValueError):
+                        pass
+
+                raise ValueError(f"Cannot deserialize value {value} as {cls}")
+
+        elif cls is Any:
+            return value
+
+        elif cls is Dict:
+            assert isinstance(value, dict)
+            return value
+
+        elif cls is List:
+            assert isinstance(value, list)
+            return value
+
+        else:
+            raise TypeError(f"Cannot not deserialize {cls}")
     else:
-        assert inspect.isclass(cls)
-
         if issubclass(cls, Path):
             return Path(value)
 
@@ -283,5 +320,8 @@ def deserialize_value(value: Any, cls: Type):
         elif issubclass(cls, timedelta):
             return timedelta(seconds=value)
 
+        elif issubclass(cls, str):
+            return str(value)
+
         else:
-            return value
+            raise TypeError(f"Cannot not deserialize {cls}")

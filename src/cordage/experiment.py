@@ -1,6 +1,8 @@
 import json
 import re
 from contextlib import contextmanager
+from dataclasses import dataclass, field
+from dataclasses import replace as dataclass_replace
 from datetime import datetime
 from itertools import count, product
 from math import ceil, floor, log10
@@ -15,20 +17,61 @@ from .util import flatten_dict, from_dict, logger, nested_serialization, to_dict
 T = TypeVar("T")
 
 
-class MetadataStore:
-    def __init__(self, global_config, **kw):
-        self.metadata: Dict[str, Any] = {"global_config": global_config, **kw}
+@dataclass
+class Metadata:
+    global_config: GlobalConfig
+    output_dir: Optional[Path] = None
+    experiment_id: Optional[str] = None
+    status: str = "pending"
+
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+
+    configuration: Any = None
+
+    additional_info: Dict = field(default_factory=dict)
 
     @property
-    def global_config(self):
-        return self.metadata["global_config"]
+    def duration(self):
+        assert self.end_time is not None and self.start_time is not None
+
+        return self.end_time - self.start_time
+
+    def replace(self, **changes):
+        return dataclass_replace(self, **changes)
+
+    @property
+    def is_series(self):
+        return isinstance(self.configuration, dict) and "series_spec" in self.configuration
+
+
+class MetadataStore:
+    def __init__(self, metadata: Optional[Metadata] = None, /, global_config: Optional[GlobalConfig] = None, **kw):
+        self.metadata: Metadata
+
+        if metadata is not None:
+            if global_config is not None or len(kw) > 0:
+                raise TypeError("Using the `metadata` argument is incompatible with using other arguments.")
+            else:
+                self.metadata = metadata
+        else:
+            if global_config is None:
+                global_config = GlobalConfig()
+            else:
+                assert isinstance(global_config, GlobalConfig)
+
+            self.metadata = Metadata(global_config=global_config, **kw)
+
+    @property
+    def global_config(self) -> GlobalConfig:
+        return self.metadata.global_config
 
     @property
     def output_dir(self) -> Path:
-        try:
-            return self.metadata["output_dir"]
-        except KeyError as exc:
-            raise RuntimeError(f"{self.__class__.__name__} has not been started yet.") from exc
+        if self.metadata.output_dir is None:
+            raise RuntimeError(f"{self.__class__.__name__} has not been started yet.")
+        else:
+            return self.metadata.output_dir
 
     @property
     def central_metadata_path(self):
@@ -51,12 +94,31 @@ class MetadataStore:
             with self.central_metadata_path.open("w", encoding="utf-8") as fp:
                 json.dump(md_dict, fp)
 
+    @classmethod
+    def load_metadata(cls, path: PathLike) -> Metadata:
+        path = Path(path)
+        if not path.suffix == ".json":
+            path = path / "cordage.json"
+
+        with path.open("r", encoding="utf-8") as fp:
+            flat_data = flatten_dict(json.load(fp))
+            metadata = from_dict(Metadata, flat_data)
+
+        if metadata.output_dir != path.parent:
+            logger.warning(
+                f"Output dir is not correct anymore. Changing it to the actual directory"
+                f"({metadata.output_dir} -> {path.parent})"
+            )
+            metadata.output_dir = path.parent
+
+        return metadata
+
 
 class Annotatable(MetadataStore):
     TAG_PATTERN = re.compile(r"\B#(\w*[a-zA-Z]+\w*)")
 
-    def __init__(self, **kw):
-        super().__init__(**kw)
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
 
         self.annotations = {}
 
@@ -108,33 +170,33 @@ class Annotatable(MetadataStore):
             with open(self.central_annotations_path, "w", encoding="utf-8") as fp:
                 json.dump(self.annotations, fp)
 
+    def load_annotations(self):
+        if self.annotations_path.exists():
+            with self.annotations_path.open("r", encoding="utf-8") as fp:
+                self.annotations = json.load(fp)
+
 
 class Experiment(Annotatable):
-    def __init__(self, **kw):
-        kw = {"status": "waiting", **kw}
-
-        super().__init__(**kw)
-
     @property
     def experiment_id(self):
-        try:
-            return self.metadata["experiment_id"]
-        except KeyError as exc:
-            raise RuntimeError(f"{self.__class__.__name__} has not been started yet.") from exc
+        if self.metadata.experiment_id is None:
+            raise RuntimeError(f"{self.__class__.__name__} has not been started yet.")
+        else:
+            return self.metadata.experiment_id
 
     def __repr__(self):
-        if "experiment_id" in self.metadata:
+        if self.metadata.experiment_id is not None:
             return f"{self.__class__.__name__} (id: {self.experiment_id}, status: {self.status})"
         else:
             return f"{self.__class__.__name__} (status: {self.status})"
 
     @property
     def status(self) -> str:
-        return self.metadata["status"]
+        return self.metadata.status
 
     @status.setter
     def status(self, value: str):
-        self.metadata["status"] = value
+        self.metadata.status = value
 
     def has_status(self, *status: str):
         return len(status) == 0 or self.status in status
@@ -144,8 +206,9 @@ class Experiment(Annotatable):
 
         Set start time, create output directory, registers run, etc.
         """
-        assert self.status == "waiting", f"{self.__class__.__name__} has already been started."
-        self.metadata.update(start_time=datetime.now(), status="running")
+        assert self.status == "pending", f"{self.__class__.__name__} has already been started."
+        self.metadata.start_time = datetime.now()
+        self.metadata.status = "running"
         self.create_output_dir()
         self.save_metadata()
         self.save_annotations()
@@ -155,22 +218,18 @@ class Experiment(Annotatable):
 
         Write metadata, close logs, etc.
         """
-        end_time = datetime.now()
-        self.metadata.update(
-            end_time=end_time,
-            duration=end_time - self.metadata["start_time"],
-            status=status,
-        )
+        self.metadata.end_time = datetime.now()
+        self.metadata.status = status
         self.save_metadata()
         self.save_annotations()
 
     def output_dir_from_id(self, experiment_id: str):
-        metadata = {**self.metadata, "experiment_id": experiment_id}
+        metadata = {**self.metadata.__dict__, "experiment_id": experiment_id}
 
         return self.global_config.base_output_dir / self.global_config.output_dir_format.format(**metadata)
 
     def create_unique_id(self):
-        ideal_id = self.global_config.experiment_id_format.format(**self.metadata)
+        ideal_id = self.global_config.experiment_id_format.format(**self.metadata.__dict__)
 
         if not self.output_dir_from_id(ideal_id).exists():
             return ideal_id
@@ -184,20 +243,20 @@ class Experiment(Annotatable):
                 return real_id
 
     def create_output_dir(self):
-        if "output_dir" in self.metadata:
+        if self.metadata.output_dir is not None:
             assert self.output_dir.exists(), f"Output directory given ({self.output_dir}), but it does not exist."
             return self.output_dir
 
-        if "experiment_id" not in self.metadata:
-            self.metadata["experiment_id"] = self.create_unique_id()
+        if self.metadata.experiment_id is None:
+            self.metadata.experiment_id = self.create_unique_id()
 
-        self.metadata["output_dir"] = self.output_dir_from_id(self.experiment_id)
+        self.metadata.output_dir = self.output_dir_from_id(self.experiment_id)
         self.output_dir.mkdir(parents=True)
 
         return self.output_dir
 
     def handle_exception(self, exc):
-        self.metadata["exception"] = {"short": repr(exc), "traceback": format_exc()}
+        self.metadata.additional_info["exception"] = {"short": repr(exc), "traceback": format_exc()}
 
     @contextmanager
     def run(self):
@@ -217,49 +276,33 @@ class Experiment(Annotatable):
             self.end(status="failed")
             raise
 
-    def synchronized(self):
+    def synchronize(self):
         """Synchronize to existing output directory."""
 
-        assert (
-            "experiment_id" in self.metadata
-        ), f"Cannot synchronize a {self.__class__.__name__} which has not experiment id."
+        if self.metadata.output_dir is None:
+            assert (
+                self.metadata.experiment_id is not None
+            ), f"Cannot synchronize a {self.__class__.__name__} which has no `experiment_id` or `output_dir`."
 
-        if "output_dir" not in self.metadata:
-            self.metadata["output_dir"] = self.output_dir_from_id(self.experiment_id)
+            self.metadata.output_dir = self.output_dir_from_id(self.experiment_id)
 
-        return self.from_path(self.metadata["output_dir"])
+        self.metadata = self.load_metadata(self.metadata.output_dir)
+
+        self.load_annotations()
+
+        return self
 
     @classmethod
     def from_path(cls, path: PathLike):
-        path = Path(path)
-        if not path.name == "cordage.json":
-            path = path / "cordage.json"
-
-        with path.open("r", encoding="utf-8") as fp:
-            data = json.load(fp)
-
-        data["global_config"] = from_dict(GlobalConfig, flatten_dict(data["global_config"]))
-
-        data["output_dir"] = Path(data["output_dir"])
-
-        if data["output_dir"] != path.parent:
-            logger.warning(
-                f"Output dir is not correct anymore. Changing it to the actual directory"
-                f"({data['output_dir']} -> {path.parent})"
-            )
-            data["output_dir"] = path.parent
+        metadata: Metadata = cls.load_metadata(path)
 
         experiment: Experiment
-
-        if "series_spec" not in data:
-            experiment = Trial(**data)
+        if not metadata.is_series:
+            experiment = Trial(metadata)
         else:
-            experiment = Series(**data)
+            experiment = Series(metadata)
 
-        annotations_path: Path = experiment.output_dir / "annotations.json"
-        if annotations_path.exists():
-            with annotations_path.open("r", encoding="utf-8") as fp:
-                experiment.annotations = json.load(fp)
+        experiment.load_annotations()
 
         return experiment
 
@@ -291,7 +334,7 @@ class Experiment(Annotatable):
 class Trial(Generic[T], Experiment):
     @property
     def config(self):
-        return self.metadata["config"]
+        return self.metadata.configuration
 
     def end(self, *args, **kwargs):
         super().end(*args, **kwargs)
@@ -328,33 +371,45 @@ class Trial(Generic[T], Experiment):
 
 
 class Series(Generic[T], Experiment):
-    def __init__(self, base_config: T, series_spec: Union[List[Dict], Dict[str, List], None] = None, **kw):
-        super().__init__(base_config=base_config, **kw)
-
-        if isinstance(series_spec, list):
-            for config_update in series_spec:
-                assert isinstance(config_update, dict)
-
-        elif isinstance(series_spec, dict):
-            series_spec = flatten_dict(series_spec)
-
-            for values in series_spec.values():
-                assert isinstance(values, list)
+    def __init__(
+        self,
+        metadata: Optional[Metadata] = None,
+        /,
+        base_config: Optional[T] = None,
+        series_spec: Union[List[Dict], Dict[str, List], None] = None,
+        **kw,
+    ):
+        if metadata is not None:
+            assert len(kw) == 0 and base_config is None and series_spec is None
+            super().__init__(metadata)
         else:
-            assert series_spec is None
+            super().__init__(configuration={}, **kw)
 
-        self.metadata["series_spec"] = series_spec
+            if isinstance(series_spec, list):
+                for config_update in series_spec:
+                    assert isinstance(config_update, dict)
+
+            elif isinstance(series_spec, dict):
+                series_spec = flatten_dict(series_spec)
+
+                for values in series_spec.values():
+                    assert isinstance(values, list)
+            else:
+                assert series_spec is None
+
+            self.metadata.configuration["series_spec"] = series_spec
+            self.metadata.configuration["base_config"] = base_config
 
         self.trials: Optional[List[Trial[T]]] = None
         self.make_all_trials()
 
     @property
     def base_config(self) -> T:
-        return self.metadata["base_config"]
+        return self.metadata.configuration["base_config"]
 
     @property
     def series_spec(self) -> Union[List[Dict], Dict[str, List], None]:
-        return self.metadata["series_spec"]
+        return self.metadata.configuration["series_spec"]
 
     @property
     def is_singular(self):
@@ -392,23 +447,23 @@ class Series(Generic[T], Experiment):
             return 1
 
     def make_trial(self, **kw):
-        trial_metadata = {
-            k: v
-            for k, v in self.metadata.items()
-            if k not in ("series_spec", "base_config", "output_dir", "experiment_id")
-        }
+        additional_info = kw.pop("additional_info", None)
 
-        trial_metadata.update(**kw)
+        fields_to_update: Dict[str, Any] = {"experiment_id": None, "output_dir": None, "configuration": {}, **kw}
 
-        return Trial(**trial_metadata)
+        trial_metadata = self.metadata.replace(**fields_to_update)
+
+        if additional_info is not None:
+            assert isinstance(additional_info, dict)
+            trial_metadata.additional_info.update(additional_info)
+
+        return Trial(trial_metadata)
 
     def make_all_trials(self):
         if self.series_spec is None:
             # single trial experiment
             logger.debug("Configuration yields a single experiment.")
-            self.metadata["is_series"] = False
-
-            self.trials = [self.make_trial(config=self.base_config)]
+            self.trials = [self.make_trial(configuration=self.base_config)]
 
         else:
             logger.debug("The given configuration yields an experiment series with %d experiments.", len(self))
@@ -431,10 +486,7 @@ class Series(Generic[T], Experiment):
                 else:
                     trial_config = cast(T, from_dict(type(self.base_config), trial_config_data))
 
-                self.trials.append(self.make_trial(config=trial_config, trial_index=i))
-
-            self.metadata["is_series"] = True
-            self.metadata["num_trials"] = len(self.trials)
+                self.trials.append(self.make_trial(configuration=trial_config, additional_info={"trial_index": i}))
 
     def __iter__(self) -> Generator[Trial[T], None, None]:
         if self.series_spec is not None:
@@ -443,8 +495,8 @@ class Series(Generic[T], Experiment):
             for i, trial in enumerate(self.trials):
                 trial_subdir = str(i + 1).zfill(ceil(log10(len(self))))
 
-                trial.metadata["series_id"] = self.experiment_id
-                trial.metadata["experiment_id"] = f"{self.experiment_id}/{trial_subdir}"
+                trial.metadata.additional_info["series_id"] = self.experiment_id
+                trial.metadata.experiment_id = f"{self.experiment_id}/{trial_subdir}"
 
                 yield trial
         else:

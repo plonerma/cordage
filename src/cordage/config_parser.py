@@ -63,7 +63,7 @@ class ConfigurationParser(Generic[T]):
             base_config=base_config,
             global_config=self.global_config,
             series_spec=series_spec,
-            metadata={
+            additional_info={
                 "description": self.description,
             },
         )

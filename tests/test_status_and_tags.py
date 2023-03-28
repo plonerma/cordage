@@ -74,9 +74,6 @@ def test_trial_series_list(global_config, resources_path):
         all_experiments[1].output_dir < all_experiments[2].output_dir
     )
 
-    for e in all_experiments:
-        print(e.experiment_id, e.tags)
-
     assert len(load_filtered()) == 3
     assert len(load_filtered(status=["complete"])) == 2
     assert len(load_filtered(tag=["not_the_first"])) == 2

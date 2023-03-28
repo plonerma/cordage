@@ -1,9 +1,9 @@
-import json
 from dataclasses import dataclass
 from time import sleep
 from typing import List
 
 import cordage
+from cordage import Experiment
 
 
 @dataclass
@@ -25,21 +25,21 @@ def test_metadata(global_config):
 
     trial = trial_store[0]
 
-    assert trial.metadata["duration"].total_seconds() < 1.1
-    assert trial.metadata["duration"].total_seconds() > 0.9
-    assert trial.metadata["status"] == "complete"
+    assert trial.metadata.duration.total_seconds() < 1.1
+    assert trial.metadata.duration.total_seconds() > 0.9
+    assert trial.metadata.status == "complete"
 
     metadata_path = trial.output_dir / "cordage.json"
 
     assert trial.metadata_path == metadata_path
     assert metadata_path.exists()
 
-    with open(trial.output_dir / "cordage.json", encoding="utf-8") as f:
-        metadata = json.load(f)
+    experiment = Experiment.from_path(metadata_path)
+    metadata = experiment.metadata
 
-    assert metadata["duration"] < 1.1
-    assert metadata["duration"] > 0.9
-    assert metadata["status"] == "complete"
+    assert metadata.duration.total_seconds() < 1.1
+    assert metadata.duration.total_seconds() > 0.9
+    assert metadata.status == "complete"
 
     rel_dir = trial.output_dir.relative_to(global_config.base_output_dir)
 
@@ -51,12 +51,12 @@ def test_metadata(global_config):
 
     assert central_annotations.exists()
 
-    with open(central_metadata, encoding="utf-8") as f:
-        metadata = json.load(f)
+    experiment = Experiment.from_path(central_metadata)
+    metadata = experiment.metadata
 
-    assert metadata["duration"] < 1.1
-    assert metadata["duration"] > 0.9
-    assert metadata["status"] == "complete"
+    assert metadata.duration.total_seconds() < 1.1
+    assert metadata.duration.total_seconds() > 0.9
+    assert metadata.status == "complete"
 
 
 def test_trial_id_collision(global_config):

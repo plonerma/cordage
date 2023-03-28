@@ -1,10 +1,12 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import List
 
 import pytest
 
 import cordage
 from cordage import Experiment, Series, Trial
+from cordage.util import logger
 
 
 @dataclass
@@ -72,21 +74,22 @@ def test_trial_series_loading(global_config, resources_path):
 
     series = Experiment.all_from_path(global_config.base_output_dir)[0]
 
+    logger.warning(series.metadata)
+
     assert isinstance(series, Series)
 
-    trial_store = [trial.synchronized() for trial in series]
+    trial_store = [trial.synchronize() for trial in series]
 
     assert len(trial_store) == 3
 
     assert all(isinstance(trial, Trial) for trial in trial_store)
 
     # after loading the series trials, the configs are merely nested dictionaries
-    assert trial_store[0].config["alpha"]["b"] == "b1"
-    assert trial_store[0].has_tag("b1")
-    assert trial_store[1].config["alpha"]["b"] == "b2"
-    assert trial_store[1].has_tag("b2")
-    assert trial_store[2].config["alpha"]["b"] == "b3"
-    assert trial_store[2].has_tag("b3")
+    for i, trial in enumerate(trial_store):
+        assert trial.config["alpha"]["b"] == f"b{i+1}"
+        assert trial.has_tag(f"b{i+1}")
+
+        assert isinstance(trial.metadata.start_time, datetime)
 
 
 @pytest.mark.parametrize("letter", "abc")
@@ -107,7 +110,7 @@ def test_more_trial_series(global_config, resources_path, letter):
         assert trial.config.beta.a == "c" + str(1 + (i // trial_store[0].config.alphas))
         assert trial.config.alpha.a == (1 + (i % trial_store[0].config.alphas))
 
-        assert trial.metadata["series_id"] == "experiment"
+        assert trial.metadata.additional_info["series_id"] == "experiment"
 
         if len(trial_store) <= 10:
             assert trial.experiment_id == f"experiment/{i+1}"
