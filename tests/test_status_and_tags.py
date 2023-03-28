@@ -83,7 +83,5 @@ def test_trial_series_list(global_config, resources_path):
     assert len(load_filtered(tag=("not_the_first", "the_first"), status="complete")) == 2
     assert len(load_filtered(tag="not_the_first", status="complete")) == 1
 
-    print("-----")
-
     # Since we only load top level experiments, only the series should show up
     assert len(Experiment.all_from_path(global_config.base_output_dir)) == 1
