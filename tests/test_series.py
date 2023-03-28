@@ -4,6 +4,7 @@ from typing import List
 import pytest
 
 import cordage
+from cordage import Experiment, Series, Trial
 
 
 @dataclass
@@ -59,6 +60,33 @@ def test_trial_series_list(global_config, resources_path):
 
     for i, trial in enumerate(trial_store):
         assert trial.output_dir == global_config.base_output_dir / "experiment" / str(i + 1)
+
+
+def test_trial_series_loading(global_config, resources_path):
+    def func(config: Config, cordage_trial: cordage.Trial):
+        cordage_trial.add_tag(config.alpha.b)
+
+    config_file = resources_path / "test_config_series_list.yml"
+
+    cordage.run(func, args=[str(config_file)], global_config=global_config)
+
+    series = Experiment.all_from_path(global_config.base_output_dir)[0]
+
+    assert isinstance(series, Series)
+
+    trial_store = [trial.synchronized() for trial in series]
+
+    assert len(trial_store) == 3
+
+    assert all(isinstance(trial, Trial) for trial in trial_store)
+
+    # after loading the series trials, the configs are merely nested dictionaries
+    assert trial_store[0].config["alpha"]["b"] == "b1"
+    assert trial_store[0].has_tag("b1")
+    assert trial_store[1].config["alpha"]["b"] == "b2"
+    assert trial_store[1].has_tag("b2")
+    assert trial_store[2].config["alpha"]["b"] == "b3"
+    assert trial_store[2].has_tag("b3")
 
 
 @pytest.mark.parametrize("letter", "abc")

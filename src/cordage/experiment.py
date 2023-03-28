@@ -217,6 +217,18 @@ class Experiment(Annotatable):
             self.end(status="failed")
             raise
 
+    def synchronized(self):
+        """Synchronize to existing output directory."""
+
+        assert (
+            "experiment_id" in self.metadata
+        ), f"Cannot synchronize a {self.__class__.__name__} which has not experiment id."
+
+        if "output_dir" not in self.metadata:
+            self.metadata["output_dir"] = self.output_dir_from_id(self.experiment_id)
+
+        return self.from_path(self.metadata["output_dir"])
+
     @classmethod
     def from_path(cls, path: PathLike):
         path = Path(path)
@@ -419,7 +431,7 @@ class Series(Generic[T], Experiment):
                 else:
                     trial_config = cast(T, from_dict(type(self.base_config), trial_config_data))
 
-                self.trials.append(self.make_trial(config=trial_config, trial_index=(i + 1)))
+                self.trials.append(self.make_trial(config=trial_config, trial_index=i))
 
             self.metadata["is_series"] = True
             self.metadata["num_trials"] = len(self.trials)
@@ -429,10 +441,10 @@ class Series(Generic[T], Experiment):
             assert self.trials is not None
 
             for i, trial in enumerate(self.trials):
-                trial_index = str(i + 1).zfill(ceil(log10(len(self))))
+                trial_subdir = str(i + 1).zfill(ceil(log10(len(self))))
 
                 trial.metadata["series_id"] = self.experiment_id
-                trial.metadata["experiment_id"] = f"{self.experiment_id}/{trial_index}"
+                trial.metadata["experiment_id"] = f"{self.experiment_id}/{trial_subdir}"
 
                 yield trial
         else:
