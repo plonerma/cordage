@@ -234,9 +234,10 @@ class Experiment:
     @classmethod
     def all_from_path(
         cls,
-        results_path,
+        results_path: PathLike,
     ) -> List["Experiment"]:
         """Load all experiments from the results_path."""
+        results_path = Path(results_path)
 
         seen_dirs: Set[Path] = set()
         experiments = []
