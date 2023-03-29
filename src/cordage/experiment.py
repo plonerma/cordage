@@ -293,9 +293,10 @@ class Experiment(Annotatable):
 
             self.metadata.output_dir = self.output_dir_from_id(self.experiment_id)
 
-        self.metadata = self.load_metadata(self.metadata.output_dir)
+        if self.metadata.output_dir.exists():
+            self.metadata = self.load_metadata(self.metadata.output_dir)
 
-        self.load_annotations()
+            self.load_annotations()
 
         return self
 
