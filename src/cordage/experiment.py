@@ -115,11 +115,11 @@ class MetadataStore:
         md_dict = self.metadata.to_dict()
 
         with open(self.metadata_path, "w", encoding="utf-8") as fp:
-            json.dump(md_dict, fp)
+            json.dump(md_dict, fp, indent=4)
 
         if self.use_central_store(create=True):
             with self.central_metadata_path.open("w", encoding="utf-8") as fp:
-                json.dump(md_dict, fp)
+                json.dump(md_dict, fp, indent=4)
 
     @classmethod
     def load_metadata(cls, path: PathLike) -> Metadata:
@@ -189,11 +189,11 @@ class Annotatable(MetadataStore):
 
     def save_annotations(self):
         with open(self.annotations_path, "w", encoding="utf-8") as fp:
-            json.dump(self.annotations, fp)
+            json.dump(self.annotations, fp, indent=4)
 
         if self.use_central_store():
             with open(self.central_annotations_path, "w", encoding="utf-8") as fp:
-                json.dump(self.annotations, fp)
+                json.dump(self.annotations, fp, indent=4)
 
     def load_annotations(self):
         if self.annotations_path.exists():
@@ -433,7 +433,7 @@ class Trial(Generic[T], Experiment):
 
     def save_file_tree(self, save_path):
         with save_path.open("w", encoding="utf-8") as fp:
-            json.dump(self.produce_file_tree(self.output_dir), fp)
+            json.dump(self.produce_file_tree(self.output_dir), fp, indent=4)
 
     def produce_file_tree(self, path, level=0):
         max_level = self.global_config.file_tree.max_level
