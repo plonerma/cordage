@@ -311,6 +311,9 @@ def deserialize_value(value: Any, cls: Type):
         elif issubclass(cls, float):
             return float(value)
 
+        elif issubclass(cls, bool):
+            return bool(value)
+
         elif issubclass(cls, int):
             return int(value)
 

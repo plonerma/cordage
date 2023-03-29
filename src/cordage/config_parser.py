@@ -141,8 +141,8 @@ class ConfigurationParser(Generic[T]):
                     )
 
                     parser.add_argument(
-                        f"--!{arg_name}",
-                        dest="arg_name",
+                        f"--not-{arg_name}",
+                        dest=arg_name,
                         action="store_false",
                         default=MISSING,
                         help=help_text + " (sets the value to False)",
