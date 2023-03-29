@@ -24,6 +24,14 @@ class CentralMetadataConfig:
 
 
 @dataclass
+class LoggingConfig:
+    use: bool = True
+    to_stream: bool = True
+    to_file: bool = True
+    filename: str = "cordage.log"
+
+
+@dataclass
 class GlobalConfig:
     """Holds the configuration for cordage."""
 
@@ -39,6 +47,8 @@ class GlobalConfig:
     file_tree: FileTreeConfig = FileTreeConfig()
 
     central_metadata: CentralMetadataConfig = CentralMetadataConfig()
+
+    logging: LoggingConfig = LoggingConfig()
 
     def __post_init__(self):
         super().__init__()

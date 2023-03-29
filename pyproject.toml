@@ -15,6 +15,7 @@ classifiers = [
     ]
 dependencies=[
   'docstring_parser',
+  'colorlog',
 ]
 
 [project.optional-dependencies]

@@ -1,1 +1,2 @@
 docstring_parser
+colorlog

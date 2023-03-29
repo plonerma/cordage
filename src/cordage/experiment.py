@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -10,6 +11,11 @@ from os import PathLike
 from pathlib import Path
 from traceback import format_exc
 from typing import Any, Dict, Generator, Generic, Iterable, List, Optional, Set, TypeVar, Union, cast
+
+try:
+    import colorlog
+except ImportError:
+    colorlog = None  # type: ignore
 
 from .global_config import GlobalConfig
 from .util import flatten_dict, from_dict, logger, nested_serialization, to_dict, unflatten_dict
@@ -81,14 +87,29 @@ class MetadataStore:
         else:
             return self.metadata.output_dir
 
+    def use_central_store(self, create=False) -> bool:
+        if not self.global_config.central_metadata.use:
+            return False
+
+        elif create:
+            self.central_output_dir.mkdir(parents=True, exist_ok=True)
+            return True
+
+        else:
+            return self.central_output_dir.exists()
+
     @property
-    def central_metadata_path(self):
+    def central_output_dir(self) -> Path:
         rel_path = self.output_dir.relative_to(self.global_config.base_output_dir)
-        return self.global_config.central_metadata.path / rel_path / "metadata.json"
+        return self.global_config.central_metadata.path / rel_path
 
     @property
     def metadata_path(self):
         return self.output_dir / "cordage.json"
+
+    @property
+    def central_metadata_path(self):
+        return self.central_output_dir / "metadata.json"
 
     def save_metadata(self):
         md_dict = self.metadata.to_dict()
@@ -96,9 +117,7 @@ class MetadataStore:
         with open(self.metadata_path, "w", encoding="utf-8") as fp:
             json.dump(md_dict, fp)
 
-        if self.global_config.central_metadata.use:
-            self.central_metadata_path.parent.mkdir(parents=True, exist_ok=True)
-
+        if self.use_central_store(create=True):
             with self.central_metadata_path.open("w", encoding="utf-8") as fp:
                 json.dump(md_dict, fp)
 
@@ -162,8 +181,7 @@ class Annotatable(MetadataStore):
 
     @property
     def central_annotations_path(self):
-        rel_path = self.output_dir.relative_to(self.global_config.base_output_dir)
-        return self.global_config.central_metadata.path / rel_path / "annotations.json"
+        return self.central_output_dir / "annotations.json"
 
     @property
     def annotations_path(self):
@@ -173,7 +191,7 @@ class Annotatable(MetadataStore):
         with open(self.annotations_path, "w", encoding="utf-8") as fp:
             json.dump(self.annotations, fp)
 
-        if self.global_config.central_metadata.use and self.central_annotations_path.parent.exists():
+        if self.use_central_store():
             with open(self.central_annotations_path, "w", encoding="utf-8") as fp:
                 json.dump(self.annotations, fp)
 
@@ -184,6 +202,11 @@ class Annotatable(MetadataStore):
 
 
 class Experiment(Annotatable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.log_handlers: List[logging.Handler] = []
+
     @property
     def experiment_id(self):
         if self.metadata.experiment_id is None:
@@ -196,6 +219,14 @@ class Experiment(Annotatable):
             return f"{self.__class__.__name__} (id: {self.experiment_id}, status: {self.status})"
         else:
             return f"{self.__class__.__name__} (status: {self.status})"
+
+    @property
+    def log_path(self):
+        return self.output_dir / self.global_config.logging.filename
+
+    @property
+    def central_log_path(self) -> Path:
+        return self.central_output_dir / self.global_config.logging.filename
 
     @property
     def status(self) -> str:
@@ -219,6 +250,7 @@ class Experiment(Annotatable):
         self.create_output_dir()
         self.save_metadata()
         self.save_annotations()
+        self.setup_log()
 
     def end(self, status: str = "undecided"):
         """End the execution of an experiment.
@@ -229,6 +261,7 @@ class Experiment(Annotatable):
         self.metadata.status = status
         self.save_metadata()
         self.save_annotations()
+        self.teardown_log()
 
     def output_dir_from_id(self, experiment_id: str):
         metadata = {**self.metadata.__dict__, "experiment_id": experiment_id}
@@ -338,6 +371,54 @@ class Experiment(Annotatable):
 
         return list(sorted(experiments, key=lambda exp: exp.output_dir))
 
+    def setup_log(self):
+        logger = logging.getLogger()
+
+        if not self.global_config.logging.use:
+            return
+
+        # in this case, a StreamHandler was set up by the series
+        part_of_series = "series_id" in self.metadata.additional_info
+
+        handler: logging.Handler
+
+        if self.global_config.logging.to_stream and not part_of_series:
+            # add colored stream handler
+            format_str = "%(name)s:%(filename)s:%(lineno)d - %(message)s"
+
+            if colorlog is not None:
+                handler = colorlog.StreamHandler()
+                handler.setFormatter(colorlog.ColoredFormatter(f"%(log_color)s%(levelname)-8s%(reset)s {format_str}"))
+            else:
+                handler = logging.StreamHandler()
+                handler.setFormatter(colorlog.ColoredFormatter(f"%(levelname)-8s {format_str}"))
+
+            logger.addHandler(handler)
+            self.log_handlers.append(handler)
+
+        if self.global_config.logging.to_file:
+            # setup logging to local output_dir
+            formatter = logging.Formatter("%(asctime)s %(levelname)-8s %(name)s:%(filename)s:%(lineno)d - %(message)s")
+            handler = logging.FileHandler(self.log_path)
+            handler.setFormatter(formatter)
+
+            logger.addHandler(handler)
+            self.log_handlers.append(handler)
+
+            # setup logging to central output_dir
+            if self.use_central_store():
+                handler = logging.FileHandler(self.central_log_path)
+                handler.setFormatter(formatter)
+
+                logger.addHandler(handler)
+                self.log_handlers.append(handler)
+
+    def teardown_log(self):
+        logger = colorlog.getLogger()
+
+        for handler in self.log_handlers:
+            logger.removeHandler(handler)
+
 
 class Trial(Generic[T], Experiment):
     @property
@@ -347,7 +428,7 @@ class Trial(Generic[T], Experiment):
     def end(self, *args, **kwargs):
         super().end(*args, **kwargs)
 
-        if self.global_config.central_metadata.use:
+        if self.use_central_store():
             self.save_file_tree(self.central_metadata_path.parent / "files.json")
 
     def save_file_tree(self, save_path):

@@ -12,7 +12,7 @@ class Config:
     b: str = "test"
 
 
-def test_metadata(global_config):
+def test_timing(global_config):
     trial_store: List[cordage.Trial] = []
 
     global_config.central_metadata.use = True

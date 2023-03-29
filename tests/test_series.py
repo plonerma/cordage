@@ -64,17 +64,17 @@ def test_trial_series_list(global_config, resources_path):
         assert trial.output_dir == global_config.base_output_dir / "experiment" / str(i + 1)
 
 
-def test_trial_series_loading(global_config, resources_path):
+def test_trial_series_loading(global_config, resources_path, capsys):
     def func(config: Config, cordage_trial: cordage.Trial):
         cordage_trial.add_tag(config.alpha.b)
+
+        logger.warning("Trial with alpha.b=%s", config.alpha.b)
 
     config_file = resources_path / "test_config_series_list.yml"
 
     cordage.run(func, args=[str(config_file)], global_config=global_config)
 
     series = Experiment.all_from_path(global_config.base_output_dir)[0]
-
-    logger.warning(series.metadata)
 
     assert isinstance(series, Series)
 
@@ -84,12 +84,31 @@ def test_trial_series_loading(global_config, resources_path):
 
     assert all(isinstance(trial, Trial) for trial in trial_store)
 
+    # test log stream
+    captured = capsys.readouterr()
+
+    for i, captured_line in enumerate(captured.err.strip().split("\n")):
+        assert f"Trial with alpha.b=b{i+1}" in captured_line
+
     # after loading the series trials, the configs are merely nested dictionaries
     for i, trial in enumerate(trial_store):
         assert trial.config["alpha"]["b"] == f"b{i+1}"
         assert trial.has_tag(f"b{i+1}")
 
         assert isinstance(trial.metadata.start_time, datetime)
+
+        # test logging was performed correctly
+        assert trial.log_path.exists()
+
+        with trial.log_path.open("r") as fp:
+            log_lines = [line for line in fp]
+
+            assert len(log_lines) == 1, "\n".join(log_lines)
+
+            for j in range(3):
+                expected_log_partial = f"Trial with alpha.b=b{j+1}"
+
+                assert (expected_log_partial in log_lines[0]) == (i == j)
 
 
 @pytest.mark.parametrize("letter", "abc")
