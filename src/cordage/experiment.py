@@ -131,7 +131,7 @@ class MetadataStore:
             metadata = Metadata.from_dict(json.load(fp))
 
         if metadata.output_dir != path.parent:
-            logger.warning(
+            logger.info(
                 f"Output dir is not correct anymore. Changing it to the actual directory"
                 f"({metadata.output_dir} -> {path.parent})"
             )
