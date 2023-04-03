@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pytest
 
@@ -14,7 +14,7 @@ class AlphaConfig:
 
 @dataclass
 class BetaConfig:
-    a: str
+    a: str = "a_value"
     b: int = 0
 
 
@@ -27,7 +27,7 @@ class Config:
     """
 
     alpha: AlphaConfig
-    beta: BetaConfig = BetaConfig(a="a_value")
+    beta: BetaConfig = field(default_factory=BetaConfig)
 
     a: str = "e_default"
 

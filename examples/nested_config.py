@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import cordage
 
@@ -15,8 +15,8 @@ class DataConfig:
 
 @dataclass
 class Config:
-    training: TrainConfig
     data: DataConfig
+    training: TrainConfig = field(default_factory=TrainConfig)
 
 
 def train(config: Config):

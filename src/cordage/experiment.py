@@ -1,5 +1,4 @@
 import json
-from json.decoder import JSONDecodeError
 import logging
 import re
 from contextlib import contextmanager
@@ -7,6 +6,7 @@ from dataclasses import dataclass, field
 from dataclasses import replace as dataclass_replace
 from datetime import datetime
 from itertools import count, product
+from json.decoder import JSONDecodeError
 from math import ceil, floor, log10
 from os import PathLike
 from pathlib import Path
@@ -373,7 +373,6 @@ class Experiment(Annotatable):
             except JSONDecodeError as exc:
                 logger.warning("Couldn't load '%s': %s", str(path), str(exc))
 
-
         return list(sorted(experiments, key=lambda exp: exp.output_dir))
 
     def setup_log(self):
@@ -547,7 +546,13 @@ class Series(Generic[T], Experiment):
     def make_trial(self, **kw):
         additional_info = kw.pop("additional_info", None)
 
-        fields_to_update: Dict[str, Any] = {"experiment_id": None, "output_dir": None, "configuration": {}, **kw}
+        fields_to_update: Dict[str, Any] = {
+            "experiment_id": None,
+            "output_dir": None,
+            "configuration": {},
+            "additional_info": {},
+            **kw,
+        }
 
         trial_metadata = self.metadata.replace(**fields_to_update)
 

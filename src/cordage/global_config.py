@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
@@ -42,13 +42,13 @@ class GlobalConfig:
 
     series_spec_key = "__series__"
 
-    param_names: ParameterNameConfig = ParameterNameConfig()
+    param_names: ParameterNameConfig = field(default_factory=ParameterNameConfig)
 
-    file_tree: FileTreeConfig = FileTreeConfig()
+    file_tree: FileTreeConfig = field(default_factory=FileTreeConfig)
 
-    central_metadata: CentralMetadataConfig = CentralMetadataConfig()
+    central_metadata: CentralMetadataConfig = field(default_factory=CentralMetadataConfig)
 
-    logging: LoggingConfig = LoggingConfig()
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
 
     def __post_init__(self):
         super().__init__()
