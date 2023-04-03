@@ -38,6 +38,12 @@ class ConfigurationParser(Generic[T]):
         self.description = kw.get("description")
 
     def parse_all(self, args=None) -> Series[T]:
+        if args is None:
+            # args default to the system args
+            args = sys.argv[1:]
+        else:
+            args = list(args)
+
         # construct parser
         conf_data: dict = vars(self.parser.parse_args(args))
         conf_data = self.remove_missing_values(conf_data)
@@ -63,9 +69,7 @@ class ConfigurationParser(Generic[T]):
             base_config=base_config,
             global_config=self.global_config,
             series_spec=series_spec,
-            additional_info={
-                "description": self.description,
-            },
+            additional_info={"description": self.description, "parsed_arguments": args},
         )
 
     def construct_config_parser(self, **kw) -> argparse.ArgumentParser:
