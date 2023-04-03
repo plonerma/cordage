@@ -1,4 +1,5 @@
 import json
+from json.decoder import JSONDecodeError
 import logging
 import re
 from contextlib import contextmanager
@@ -367,7 +368,11 @@ class Experiment(Annotatable):
 
             seen_dirs.add(path)
 
-            experiments.append(cls.from_path(p.parent))
+            try:
+                experiments.append(cls.from_path(p.parent))
+            except JSONDecodeError as exc:
+                logger.warning("Couldn't load '%s': %s", str(path), str(exc))
+
 
         return list(sorted(experiments, key=lambda exp: exp.output_dir))
 
