@@ -110,7 +110,7 @@ class ConfigurationParser(Generic[T]):
             elif get_origin(arg_type) is Union:
                 args = get_args(arg_type)
 
-                if len(args) == 2 and args[1] is None:
+                if len(args) == 2 and isinstance(None, args[1]):
                     # optional
                     self._add_argument_to_parser(parser, arg_name, args[0])
 

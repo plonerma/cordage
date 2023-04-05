@@ -1,6 +1,7 @@
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -26,6 +27,7 @@ class Config:
     d: int = field(default=1, metadata={"help": "correct_help_text"})
     e: Literal["a", "b", "c"] = "a"
     f: bool = False
+    g: Optional[int] = None
 
 
 def test_simple_config(global_config):
