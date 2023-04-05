@@ -1,5 +1,5 @@
 import sys
-from typing import Any, Dict, Generic, Mapping, Optional, Type, TypeVar, get_args, get_origin
+from typing import Any, Dict, Generic, Mapping, Optional, Type, TypeVar, Union, get_args, get_origin
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -86,6 +86,56 @@ class ConfigurationParser(Generic[T]):
 
         return parser
 
+    def _add_argument_to_parser(self, parser: argparse.ArgumentParser, arg_name: str, arg_type: Any, **kw):
+        # If the field is also a dataclass, recurse (nested config)
+        if dataclasses.is_dataclass(arg_type):
+            self.add_arguments_to_parser(arg_type, parser, prefix=arg_name)
+
+            parser.add_argument(f"--{arg_name}", type=Path, default=MISSING, **kw)
+        else:
+            # Look the field annotation to determine which type of argument to add
+
+            # Choice field
+            if get_origin(arg_type) is Literal:
+                # Value must be from this set
+                choices = get_args(arg_type)
+
+                literal_arg_type = type(choices[0])
+
+                if any((not isinstance(c, literal_arg_type) for c in choices)):
+                    raise TypeError(f"If Literal is used, all values must be of the same type ({arg_name}).")
+
+                parser.add_argument(f"--{arg_name}", type=literal_arg_type, choices=choices, default=MISSING, **kw)
+
+            elif get_origin(arg_type) is Union:
+                args = get_args(arg_type)
+
+                if len(args) == 2 and args[1] is None:
+                    # optional
+                    self._add_argument_to_parser(parser, arg_name, args[0])
+
+                else:
+                    raise TypeError("Config parser does not support Union annotations.")
+
+            # Boolean field
+            elif issubclass(arg_type, bool):
+                # Create a true and a false flag -> the destination is identical
+                if "help" in kw:
+                    kw_true = {**kw, "help": kw["help"] + " (sets the value to True)"}
+                    kw_false = {**kw, "help": kw["help"] + " (sets the value to False)"}
+                else:
+                    kw_true = kw_false = kw
+
+                parser.add_argument(f"--{arg_name}", action="store_true", default=MISSING, **kw_true)
+
+                parser.add_argument(
+                    f"--not-{arg_name}", dest=arg_name, action="store_false", default=MISSING, **kw_false
+                )
+
+            # Other types
+            else:
+                parser.add_argument(f"--{arg_name}", type=arg_type, default=MISSING, **kw)
+
     def add_arguments_to_parser(
         self, config_cls: Type[T], parser: argparse.ArgumentParser, prefix: Optional[str] = None
     ):
@@ -111,50 +161,7 @@ class ConfigurationParser(Generic[T]):
             # Retrieve help text
             help_text = field.metadata.get("help", param_doc.get(field.name, ""))
 
-            # If the field is also a dataclass, recurse (nested config)
-            if dataclasses.is_dataclass(field.type):
-                self.add_arguments_to_parser(field.type, parser, prefix=arg_name)
-
-                parser.add_argument(f"--{arg_name}", type=Path, help=help_text, default=MISSING)
-            else:
-                # Look the field annotation to determine which type of argument to add
-
-                # Choice field
-                if get_origin(field.type) is Literal:
-                    # Value must be from this set
-                    choices = get_args(field.type)
-                    arg_type = type(choices[0])
-
-                    if any((not isinstance(c, arg_type) for c in choices)):
-                        raise TypeError(
-                            f"If Literal is used, all values must be of the same type ({config_cls}.{field.name})."
-                        )
-
-                    parser.add_argument(
-                        f"--{arg_name}", type=arg_type, choices=choices, help=help_text, default=MISSING
-                    )
-
-                # Boolean field
-                elif issubclass(field.type, bool):
-                    # Create a true and a false flag -> the destination is identical
-                    parser.add_argument(
-                        f"--{arg_name}",
-                        action="store_true",
-                        default=MISSING,
-                        help=help_text + " (sets the value to True)",
-                    )
-
-                    parser.add_argument(
-                        f"--not-{arg_name}",
-                        dest=arg_name,
-                        action="store_false",
-                        default=MISSING,
-                        help=help_text + " (sets the value to False)",
-                    )
-
-                # Other types
-                else:
-                    parser.add_argument(f"--{arg_name}", type=field.type, help=help_text, default=MISSING)
+            self._add_argument_to_parser(parser, arg_name, field.type, help=help_text)
 
     def remove_missing_values(self, data: Mapping) -> Dict[str, Any]:
         return {k: v for k, v in data.items() if v is not MISSING}
