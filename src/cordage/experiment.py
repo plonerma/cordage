@@ -470,13 +470,16 @@ class Series(Generic[T], Experiment):
         /,
         base_config: Optional[T] = None,
         series_spec: Union[List[Dict], Dict[str, List], None] = None,
+        series_skip: Optional[int] = None,
         **kw,
     ):
         if metadata is not None:
             assert len(kw) == 0 and base_config is None and series_spec is None
             super().__init__(metadata)
         else:
-            super().__init__(configuration={"base_config": base_config, "series_spec": series_spec}, **kw)
+            super().__init__(
+                configuration={"base_config": base_config, "series_spec": series_spec, "series_skip": series_skip}, **kw
+            )
 
         self.validate_series_spec()
 
@@ -507,6 +510,15 @@ class Series(Generic[T], Experiment):
     @property
     def series_spec(self) -> Union[List[Dict], Dict[str, List], None]:
         return self.metadata.configuration["series_spec"]
+
+    @property
+    def series_skip(self) -> int:
+        skip: Optional[int] = self.metadata.configuration.get("series_skip", None)
+
+        if skip is None:
+            return 0
+        else:
+            return skip
 
     @property
     def is_singular(self):
@@ -595,7 +607,7 @@ class Series(Generic[T], Experiment):
         if self.series_spec is not None:
             assert self.trials is not None
 
-            for i, trial in enumerate(self.trials):
+            for i, trial in enumerate(self.trials[self.series_skip :], start=self.series_skip):
                 trial_subdir = str(i + 1).zfill(ceil(log10(len(self))))
 
                 trial.metadata.additional_info["series_id"] = self.experiment_id

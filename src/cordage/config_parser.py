@@ -45,30 +45,34 @@ class ConfigurationParser(Generic[T]):
             args = list(args)
 
         # construct parser
-        conf_data: dict = vars(self.parser.parse_args(args))
-        conf_data = self.remove_missing_values(conf_data)
+        argument_data: dict = vars(self.parser.parse_args(args))
+        argument_data = self.remove_missing_values(argument_data)
 
-        if "." in conf_data:
-            config_path = conf_data.pop(".")
+        if "." in argument_data:
+            config_path = argument_data.pop(".")
 
             nested_loaded_data = read_config_file(config_path)
 
             series_spec = nested_loaded_data.pop(self.global_config.series_spec_key, None)
 
             new_conf_data = flatten_dict(nested_loaded_data)
-            new_conf_data.update(conf_data)
+            new_conf_data.update(argument_data)
 
-            conf_data = new_conf_data
+            argument_data = new_conf_data
 
         else:
             series_spec = None
 
-        base_config: T = from_dict(self.main_config_cls, conf_data)
+        # series skip might be given via the command line ("--series-skip <n>") or a config file "__series-skip__"
+        series_skip = argument_data.pop(self.global_config.series_skip_key, None)
+
+        base_config: T = from_dict(self.main_config_cls, argument_data)
 
         return Series(
             base_config=base_config,
             global_config=self.global_config,
             series_spec=series_spec,
+            series_skip=series_skip,
             additional_info={"description": self.description, "parsed_arguments": args},
         )
 
@@ -82,6 +86,15 @@ class ConfigurationParser(Generic[T]):
 
         parser.add_argument(
             ".", metavar="config_file", nargs="?", help="Top-level config file to load.", type=Path, default=MISSING
+        )
+
+        parser.add_argument(
+            "--series-skip",
+            type=int,
+            metavar="n",
+            help="Skip first n trials in the execution of a series.",
+            default=MISSING,
+            dest=self.global_config.series_skip_key,
         )
 
         return parser

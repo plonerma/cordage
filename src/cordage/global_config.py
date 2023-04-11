@@ -41,6 +41,7 @@ class GlobalConfig:
     output_dir_format: str = "{start_time:%Y-%m}/{experiment_id}"
 
     series_spec_key = "__series__"
+    series_skip_key = "__series-skip__"
 
     param_names: ParameterNameConfig = field(default_factory=ParameterNameConfig)
 
