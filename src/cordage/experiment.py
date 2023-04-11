@@ -563,6 +563,7 @@ class Series(Generic[T], Experiment):
             "output_dir": None,
             "configuration": {},
             "additional_info": {},
+            "status": "pending",
             **kw,
         }
 
@@ -601,13 +602,24 @@ class Series(Generic[T], Experiment):
                 else:
                     trial_config = cast(T, from_dict(type(self.base_config), trial_config_data))
 
-                self.trials.append(self.make_trial(configuration=trial_config, additional_info={"trial_index": i}))
+                if i < self.series_skip:
+                    status = "skipped"
+                else:
+                    status = "pending"
 
-    def __iter__(self) -> Generator[Trial[T], None, None]:
+                trial = self.make_trial(configuration=trial_config, additional_info={"trial_index": i}, status=status)
+                self.trials.append(trial)
+
+    def __iter__(self):
+        return self.get_all_trials(include_skipped=False)
+
+    def get_all_trials(self, include_skipped: bool = False) -> Generator[Trial[T], None, None]:
         if self.series_spec is not None:
             assert self.trials is not None
 
-            for i, trial in enumerate(self.trials[self.series_skip :], start=self.series_skip):
+            skip = 0 if include_skipped else self.series_skip
+
+            for i, trial in enumerate(self.trials[skip:], start=skip):
                 trial_subdir = str(i + 1).zfill(ceil(log10(len(self))))
 
                 trial.metadata.additional_info["series_id"] = self.experiment_id
