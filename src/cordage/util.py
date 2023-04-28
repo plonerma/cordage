@@ -184,20 +184,23 @@ def from_dict(config_cls: Type[T], flat_data: Dict[str, Any]) -> T:
         if not dataclasses.is_dataclass(field.type):
             # The is not a dataclass -> can be set directly
             try:
-                config_kw[field.name] = deserialize_value(flat_data[field.name], field.type)
-            except KeyError as exc:
-                if any(k.startswith(field.name + ".") for k in flat_data.keys()):
-                    value = build_inner_dict(flat_data, field.name)
-                    value = unflatten_dict(value)
+                if field.name in flat_data:
+                    config_kw[field.name] = deserialize_value(flat_data[field.name], field.type)
+                else:
+                    if any(k.startswith(field.name + ".") for k in flat_data.keys()):
+                        value = build_inner_dict(flat_data, field.name)
+                        value = unflatten_dict(value)
 
-                    try:
-                        config_kw[field.name] = deserialize_value(value, field.type)
-                    except ValueError as value_exc:
-                        raise ValueError(f"Cannot deserialize {value} as {field.type} (in {field.name})") from value_exc
+                        try:
+                            config_kw[field.name] = deserialize_value(value, field.type)
+                        except ValueError as value_exc:
+                            raise ValueError(
+                                f"Cannot deserialize {value} as {field.type} (in {field.name})"
+                            ) from value_exc
 
-                # If the field is required, raise a KeyError, otherwise ignore
-                elif is_field_required(field):
-                    raise KeyError(f"Field {field.name} in {config_cls} is required, but was not specified.") from exc
+                    # If the field is required, raise a KeyError, otherwise ignore
+                    elif is_field_required(field):
+                        raise KeyError(f"Field {field.name} in {config_cls} is required, but was not specified.")
             except ValueError as exc:
                 raise ValueError(f"invalid value for {config_cls.__name__}.{field.name}: {exc.args[0]}") from exc
         else:
