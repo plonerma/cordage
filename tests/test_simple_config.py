@@ -1,7 +1,7 @@
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -28,6 +28,9 @@ class Config:
     e: Literal["a", "b", "c"] = "a"
     f: bool = False
     g: Optional[int] = None
+    h: Tuple[str, ...] = ("a", "b")
+    i: Tuple[str, str] = ("a", "b")
+    j: Tuple[str, int, float] = ("a", 1, 1.0)
 
 
 def test_simple_config(global_config):
@@ -63,6 +66,35 @@ def test_literal_fields(global_config, resources_path):
     config_file = resources_path / "test_config_simple_b.json"
 
     with pytest.raises(TypeError):
+        cordage.run(func, args=[str(config_file)], global_config=global_config)
+
+
+def test_tuple_length_fields(global_config, resources_path):
+    def func(config: Config):
+        pass
+
+    config_file = resources_path / "test_config_simple_c.toml"
+
+    with pytest.raises(ValueError):
+        cordage.run(func, args=[str(config_file)], global_config=global_config)
+
+
+def test_valid_mixed_tuple(global_config, resources_path):
+    def func(config: Config):
+        pass
+
+    config_file = resources_path / "test_config_simple_d.json"
+
+    cordage.run(func, args=[str(config_file)], global_config=global_config)
+
+
+def test_invalid_mixed_tuple(global_config, resources_path):
+    def func(config: Config):
+        pass
+
+    config_file = resources_path / "test_config_simple_e.toml"
+
+    with pytest.raises(ValueError):
         cordage.run(func, args=[str(config_file)], global_config=global_config)
 
 

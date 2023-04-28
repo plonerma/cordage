@@ -291,19 +291,43 @@ def deserialize_value(value: Any, cls: Type):
 
                 raise ValueError(f"Cannot deserialize value {value} as {cls}")
 
-        elif cls is Any:
-            return value
+        elif origin is tuple:
+            args = get_args(cls)
 
-        elif cls is Dict:
+            if len(args) == 2 and args[1] == ...:
+                # check that all elements in value conform to the provided args
+                return tuple(deserialize_value(v, args[0]) for v in value)
+
+            elif len(args) > 0:
+                if len(args) != len(value):
+                    raise ValueError(f"{value} has incorrect number of elements for {cls}.")
+
+                return tuple(deserialize_value(v, a) for v, a in zip(value, args))
+            else:
+                try:
+                    return tuple(value)
+                except TypeError as exc:
+                    raise ValueError(f"Cannot deserialize {type(value)} as {cls}") from exc
+
+        elif origin is list:
+            try:
+                args = get_args(cls)
+                if len(args) == 0:
+                    return list(value)
+                else:
+                    return [deserialize_value(v, args[0]) for v in value]
+            except TypeError as exc:
+                raise ValueError(f"Cannot deserialize {type(value)} as {cls}") from exc
+
+        elif origin is dict:
             assert isinstance(value, dict)
             return value
 
-        elif cls is List:
-            assert isinstance(value, list)
+        elif cls is Any:
             return value
 
         else:
-            raise TypeError(f"Cannot not deserialize {cls}")
+            raise ValueError(f"Cannot not deserialize {cls}")
     else:
         if issubclass(cls, Path):
             return Path(value)

@@ -27,6 +27,8 @@ MISSING = MissingType()
 
 T = TypeVar("T")
 
+SUPPORTED_PRIMITIVES = (int, bool, str, float, Path)
+
 
 class ConfigurationParser(Generic[T]):
     def __init__(self, global_config: GlobalConfig, config_cls: Type[T], **kw):
@@ -131,7 +133,7 @@ class ConfigurationParser(Generic[T]):
                     raise TypeError("Config parser does not support Union annotations.")
 
             # Boolean field
-            elif issubclass(arg_type, bool):
+            elif arg_type == bool:
                 # Create a true and a false flag -> the destination is identical
                 if "help" in kw:
                     kw_true = {**kw, "help": kw["help"] + " (sets the value to True)"}
@@ -145,8 +147,7 @@ class ConfigurationParser(Generic[T]):
                     f"--not-{arg_name}", dest=arg_name, action="store_false", default=MISSING, **kw_false
                 )
 
-            # Other types
-            else:
+            elif arg_type in SUPPORTED_PRIMITIVES:
                 parser.add_argument(f"--{arg_name}", type=arg_type, default=MISSING, **kw)
 
     def add_arguments_to_parser(
