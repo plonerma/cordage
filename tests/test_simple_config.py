@@ -31,6 +31,7 @@ class Config:
     h: Tuple[str, ...] = ("a", "b")
     i: Tuple[str, str] = ("a", "b")
     j: Tuple[str, int, float] = ("a", 1, 1.0)
+    k: Optional[int] = None
 
 
 def test_simple_config(global_config):
@@ -93,6 +94,16 @@ def test_invalid_mixed_tuple(global_config, resources_path):
         pass
 
     config_file = resources_path / "test_config_simple_e.toml"
+
+    with pytest.raises(ValueError):
+        cordage.run(func, args=[str(config_file)], global_config=global_config)
+
+
+def test_invalid_optional(global_config, resources_path):
+    def func(config: Config):
+        pass
+
+    config_file = resources_path / "test_config_simple_f.json"
 
     with pytest.raises(ValueError):
         cordage.run(func, args=[str(config_file)], global_config=global_config)

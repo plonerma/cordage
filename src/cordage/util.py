@@ -159,6 +159,7 @@ def is_field_required(field: dataclasses.Field) -> bool:
 
 
 def build_inner_dict(flat_dict: Dict[str, Any], key: str) -> Dict[str, Any]:
+    """Gather all items which have a certain key prefix (and remove the prefix from the key)."""
     inner_dict = dict()
 
     for k, v in flat_dict.items():
@@ -189,7 +190,10 @@ def from_dict(config_cls: Type[T], flat_data: Dict[str, Any]) -> T:
                     value = build_inner_dict(flat_data, field.name)
                     value = unflatten_dict(value)
 
-                    config_kw[field.name] = deserialize_value(value, field.type)
+                    try:
+                        config_kw[field.name] = deserialize_value(value, field.type)
+                    except ValueError as value_exc:
+                        raise ValueError(f"Cannot deserialize {value} as {field.type} (in {field.name})") from value_exc
 
                 # If the field is required, raise a KeyError, otherwise ignore
                 elif is_field_required(field):
