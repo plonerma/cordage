@@ -133,4 +133,8 @@ def run(
                         # pass trial object
                         func_kw[name] = trial
 
+                    elif name == global_config.param_names.series_object:
+                        # pass trial object
+                        func_kw[name] = series
+
                 func(**func_kw)

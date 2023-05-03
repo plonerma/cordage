@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta
 from os import PathLike
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Type, TypeVar
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Type, TypeVar, Union
 
 import dacite
 
@@ -118,15 +118,22 @@ def write_dict_to_file(path: PathLike, data: Mapping[str, Any]):
         return writer(data, conf_file)
 
 
-def nested_items(nested_dict: Dict[Any, Any], prefix: tuple = ()):
+def flattened_items(nested_dict: Dict[Any, Any], prefix: tuple = (), sep=None):
     """Iter over all items in a nested dictionary."""
     for k, v in nested_dict.items():
         flat_k = prefix + (k,)
 
         if isinstance(v, dict):
-            yield from nested_items(v, flat_k)
+            for ik, iv in flattened_items(v, flat_k):
+                if sep is None:
+                    yield ik, iv
+                else:
+                    yield sep.join(ik), iv
         else:
-            yield (flat_k, v)
+            if sep is None:
+                yield flat_k, v
+            else:
+                yield sep.join(flat_k), v
 
 
 def nested_update(target_dict: Dict, update_dict: Mapping):
@@ -140,7 +147,7 @@ def nested_update(target_dict: Dict, update_dict: Mapping):
     return target_dict
 
 
-def nest_items(flat_items: Iterable[Tuple[str, Any]]) -> Dict[str, Any]:
+def nest_items(flat_items: Iterable[Tuple[Union[str, Tuple[str, ...]], Any]]) -> Dict[str, Any]:
     """Unflatten a dict.
 
     If any keys contain '.', sub-dicts will be created.
@@ -149,11 +156,20 @@ def nest_items(flat_items: Iterable[Tuple[str, Any]]) -> Dict[str, Any]:
     dicts_to_nest: List[str] = []
 
     for k, v in flat_items:
-        if "." not in k:
-            nested_dict[k] = v
+        k_tuple: Tuple[str, ...]
+        if isinstance(k, tuple):
+            k_tuple = k
+        else:
+            # if key is of the form "a.b", split into tuple
+            k_tuple = tuple(k.split("."))
+
+        prefix = k_tuple[0]
+        remainder = k_tuple[1:]
+
+        if len(remainder) == 0:
+            nested_dict[prefix] = v
 
         else:
-            prefix, remainder = k.split(".", 1)
             if prefix not in nested_dict:
                 nested_dict[prefix] = {}
                 dicts_to_nest.append(prefix)

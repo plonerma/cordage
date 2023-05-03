@@ -9,6 +9,7 @@ class ParameterNameConfig:
     config: str = "config"
     output_dir: str = "output_dir"
     trial_object: str = "cordage_trial"
+    series_object: str = "cordage_series"
 
 
 @dataclass

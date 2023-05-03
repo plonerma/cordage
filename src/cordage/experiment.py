@@ -20,7 +20,7 @@ except ImportError:
     colorlog = None  # type: ignore
 
 from .global_config import GlobalConfig
-from .util import from_dict, logger, nest_items, nested_items, nested_update, to_dict
+from .util import flattened_items, from_dict, logger, nest_items, nested_update, to_dict
 
 T = TypeVar("T")
 
@@ -478,6 +478,9 @@ class Series(Generic[T], Experiment):
             assert len(kw) == 0 and base_config is None and series_spec is None
             super().__init__(metadata)
         else:
+            if isinstance(series_spec, list):
+                series_spec = [nest_items(flattened_items(trial_update, sep=".")) for trial_update in series_spec]
+
             super().__init__(
                 configuration={"base_config": base_config, "series_spec": series_spec, "series_skip": series_skip}, **kw
             )
@@ -538,19 +541,30 @@ class Series(Generic[T], Experiment):
             with super().run():
                 yield self
 
+    def get_changing_fields(self):
+        keys = set()
+
+        if isinstance(self.series_spec, list):
+            for trial_update in self.series_spec:
+                for k, _ in flattened_items(trial_update):
+                    keys.add(k)
+
+        elif isinstance(self.series_spec, dict):
+            for k, _ in flattened_items(self.series_spec):
+                keys.add(k)
+
+        return keys
+
     def get_trial_updates(self) -> Generator[Dict, None, None]:
         if isinstance(self.series_spec, list):
             for trial_update in self.series_spec:
-                yield nest_items(trial_update.items())
+                yield trial_update
         elif isinstance(self.series_spec, dict):
-            keys, values = zip(*nested_items(self.series_spec))
+            keys, values = zip(*flattened_items(self.series_spec))
 
             keys = [".".join(k) for k in keys]
 
             for update_values in product(*values):
-                logger.debug("Computing update")
-                logger.debug(keys)
-                logger.debug(nest_items(zip(keys, update_values)))
                 yield nest_items(zip(keys, update_values))
         else:
             yield {}
@@ -563,7 +577,7 @@ class Series(Generic[T], Experiment):
             return len(self.series_spec)
         elif isinstance(self.series_spec, dict):
             num_trials = 1
-            for _, values in nested_items(self.series_spec):
+            for _, values in flattened_items(self.series_spec):
                 num_trials *= len(values)
             assert (
                 self.trials is None or len(self.trials) == num_trials
