@@ -2,6 +2,7 @@ import json
 import logging
 import re
 from contextlib import contextmanager
+from copy import deepcopy
 from dataclasses import dataclass, field
 from dataclasses import replace as dataclass_replace
 from datetime import datetime
@@ -11,7 +12,7 @@ from math import ceil, floor, log10
 from os import PathLike
 from pathlib import Path
 from traceback import format_exc
-from typing import Any, Dict, Generator, Generic, Iterable, List, Optional, Set, TypeVar, Union, cast
+from typing import Any, Dict, Generator, Generic, Iterable, List, Mapping, Optional, Set, TypeVar, Union, cast
 
 try:
     import colorlog
@@ -19,7 +20,7 @@ except ImportError:
     colorlog = None  # type: ignore
 
 from .global_config import GlobalConfig
-from .util import flatten_dict, from_dict, logger, nested_serialization, to_dict, unflatten_dict
+from .util import from_dict, logger, nest_dict, nested_items, nested_update, to_dict
 
 T = TypeVar("T")
 
@@ -52,12 +53,11 @@ class Metadata:
         return isinstance(self.configuration, dict) and "series_spec" in self.configuration
 
     def to_dict(self):
-        return nested_serialization(self)
+        return to_dict(self)
 
     @classmethod
-    def from_dict(cls, data):
-        flat_data = flatten_dict(data)
-        return from_dict(cls, flat_data)
+    def from_dict(cls, data: Mapping):
+        return from_dict(cls, data)
 
 
 class MetadataStore:
@@ -421,6 +421,7 @@ class Experiment(Annotatable):
         logger = colorlog.getLogger()
 
         for handler in self.log_handlers:
+            handler.close()
             logger.removeHandler(handler)
 
 
@@ -493,15 +494,22 @@ class Series(Generic[T], Experiment):
             for config_update in series_spec:
                 assert isinstance(config_update, dict)
 
-        elif isinstance(series_spec, dict):
-            series_spec = flatten_dict(series_spec)
+            series_spec = [nest_dict(config_update) for config_update in series_spec]
 
-            for values in series_spec.values():
-                assert isinstance(values, list)
+        elif isinstance(series_spec, dict):
+
+            def only_list_nodes(d):
+                for v in d.values():
+                    if isinstance(v, dict):
+                        if not only_list_nodes(v):
+                            return False
+                    elif not isinstance(v, list):
+                        return False
+                    return True
+
+            assert only_list_nodes(series_spec), f"Invalid series specification: {series_spec}"
         else:
             assert series_spec is None
-
-        self.metadata.configuration["series_spec"] = series_spec
 
     @property
     def base_config(self) -> T:
@@ -536,9 +544,12 @@ class Series(Generic[T], Experiment):
         if isinstance(self.series_spec, list):
             yield from self.series_spec
         elif isinstance(self.series_spec, dict):
-            keys, values = zip(*self.series_spec.items())
+            keys, values = zip(*nested_items(self.series_spec))
+
+            keys = [".".join(k) for k in keys]
+
             for update_values in product(*values):
-                yield dict(zip(keys, update_values))
+                yield nest_dict(dict(zip(keys, update_values)))
         else:
             yield {}
 
@@ -586,19 +597,18 @@ class Series(Generic[T], Experiment):
             self.trials = []
 
             for i, trial_update in enumerate(self.get_trial_updates()):
-                conf_data: Dict[str, Any]
+                trial_config_data: Dict[str, Any]
+
                 if isinstance(self.base_config, dict):
-                    conf_data = self.base_config
+                    trial_config_data = deepcopy(self.base_config)
                 else:
-                    conf_data = to_dict(self.base_config)
+                    trial_config_data = to_dict(self.base_config)
 
-                conf_data = flatten_dict(conf_data)
-
-                trial_config_data = flatten_dict(trial_update, conf_data)
+                nested_update(trial_config_data, trial_update)
 
                 trial_config: T
                 if isinstance(self.base_config, dict):
-                    trial_config = cast(T, unflatten_dict(trial_config_data))
+                    trial_config = cast(T, trial_config_data)
                 else:
                     trial_config = cast(T, from_dict(type(self.base_config), trial_config_data))
 

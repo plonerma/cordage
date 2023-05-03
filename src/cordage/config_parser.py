@@ -14,7 +14,7 @@ from docstring_parser import parse as parse_docstring
 
 from .experiment import Series
 from .global_config import GlobalConfig
-from .util import flatten_dict, from_dict, read_config_file
+from .util import from_dict, nest_dict, nested_update, read_dict_from_file
 
 
 class MissingType:
@@ -50,15 +50,18 @@ class ConfigurationParser(Generic[T]):
         argument_data: dict = vars(self.parser.parse_args(args))
         argument_data = self.remove_missing_values(argument_data)
 
-        if "." in argument_data:
-            config_path = argument_data.pop(".")
+        config_path = argument_data.pop(".", None)
 
-            nested_loaded_data = read_config_file(config_path)
+        argument_data = nest_dict(argument_data)
 
-            series_spec = nested_loaded_data.pop(self.global_config.series_spec_key, None)
+        if config_path is not None:
+            new_conf_data = read_dict_from_file(config_path)
 
-            new_conf_data = flatten_dict(nested_loaded_data)
-            new_conf_data.update(argument_data)
+            new_conf_data = nest_dict(new_conf_data)
+
+            series_spec = new_conf_data.pop(self.global_config.series_spec_key, None)
+
+            nested_update(new_conf_data, argument_data)
 
             argument_data = new_conf_data
 

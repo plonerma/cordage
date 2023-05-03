@@ -1,16 +1,10 @@
 import dataclasses
-import inspect
 import logging
-import sys
 from datetime import datetime, timedelta
 from os import PathLike
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Optional, Type, TypeVar, Union, cast, get_args, get_origin
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Type, TypeVar
 
-if sys.version_info >= (3, 8):
-    from typing import Literal
-else:
-    from typing_extensions import Literal
 
 logger = logging.getLogger("cordage")
 
@@ -50,10 +44,10 @@ def get_loader(extension):
     return loader
 
 
-def read_config_file(path: PathLike) -> Dict[str, Any]:
-    """Read config file.
+def read_dict_from_file(path: PathLike) -> Dict[str, Any]:
+    """Read dictionary from toml, yaml, or json file.
 
-    Can be of type toml, yaml, or json.
+    The file-type is inferred from the file extension.
     """
     extension = Path(path).suffix[1:]
 
@@ -96,10 +90,10 @@ def get_writer(extension):
     return writer
 
 
-def write_config_file(path: PathLike, data: Mapping[str, Any]):
-    """Save config file.
+def write_dict_to_file(path: PathLike, data: Mapping[str, Any]):
+    """Write dictionary to toml, yaml, or json file.
 
-    Can be of type toml, yaml, or json.
+    The file-type is inferred from the file extension.
     """
     extension = Path(path).suffix[1:]
 
@@ -109,30 +103,33 @@ def write_config_file(path: PathLike, data: Mapping[str, Any]):
         return writer(data, conf_file)
 
 
-def flatten_dict(
-    nested_dict: Dict[str, Any], update_dict: Optional[Dict[str, Any]] = None, prefix: Optional[str] = None
-) -> Dict[str, Any]:
-    """Update (or create) a flat dictionary.
-
-    :param nested_dict: The nested dictionary whose items will be used.
-    :param update_dict: A dictionary to update with the items from nested_dict (optional).
-    """
-
-    if update_dict is None:
-        update_dict = {}
-
+def nested_items(nested_dict: Dict[Any, Any], prefix: tuple = ()):
+    """Iter over all items in a nested dictionary."""
     for k, v in nested_dict.items():
-        flat_k = k if prefix is None else f"{prefix}.{k}"
+        flat_k = prefix + (k,)
 
         if isinstance(v, dict):
-            flatten_dict(v, update_dict=update_dict, prefix=flat_k)
+            yield from nested_items(v, flat_k)
         else:
-            update_dict[flat_k] = v
-
-    return update_dict
+            yield (flat_k, v)
 
 
-def unflatten_dict(flat_dict: Dict[str, Any]) -> Dict[str, Any]:
+def nested_update(target_dict: Dict, update_dict: Mapping):
+    """Update a nested dictionary."""
+    for k, v in update_dict.items():
+        if isinstance(v, Mapping) and isinstance(target_dict[k], dict):
+            nested_update(target_dict[k], v)
+        else:
+            target_dict[k] = v
+
+    return target_dict
+
+
+def nest_dict(flat_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """Unflatten a dict.
+
+    If any keys contain '.', sub-dicts will be created.
+    """
     nested_dict: Dict[str, Any] = {}
     dicts_to_nest: List[str] = []
 
@@ -149,213 +146,41 @@ def unflatten_dict(flat_dict: Dict[str, Any]) -> Dict[str, Any]:
             nested_dict[prefix][remainder] = v
 
     for k in dicts_to_nest:
-        nested_dict[k] = unflatten_dict(nested_dict[k])
+        nested_dict[k] = nest_dict(nested_dict[k])
 
     return nested_dict
 
 
-def is_field_required(field: dataclasses.Field) -> bool:
-    return field.default is dataclasses.MISSING and field.default_factory is dataclasses.MISSING
 
 
-def build_inner_dict(flat_dict: Dict[str, Any], key: str) -> Dict[str, Any]:
-    """Gather all items which have a certain key prefix (and remove the prefix from the key)."""
-    inner_dict = dict()
 
-    for k, v in flat_dict.items():
-        if k.startswith(key + "."):
-            # Remove the prefix and store the value
-            inner_dict[k.split(".", 1)[1]] = v
-
-    return inner_dict
+    data: Mapping = read_dict_from_file(path)
+    return from_dict(config_cls, data, config)
 
 
-def from_dict(config_cls: Type[T], flat_data: Dict[str, Any]) -> T:
-    """Create a (potentially nested) configuration object from a mapping."""
-    assert dataclasses.is_dataclass(config_cls)
+def apply_nested_type_mapping(data: Mapping, type_mapping: Mapping[Type, Callable]):
+    result = {}
 
-    config_kw = dict()
+    for k, v in data.items():
+        if isinstance(v, Mapping):
+            v = apply_nested_type_mapping(v, type_mapping)
 
-    for field in dataclasses.fields(config_cls):
-        if not field.init:
-            # Field is not set in the initializer
-            continue
+        for t, func in type_mapping.items():
+            if isinstance(v, t):
+                v = func(v)
 
-        if not dataclasses.is_dataclass(field.type):
-            # The is not a dataclass -> can be set directly
-            try:
-                if field.name in flat_data:
-                    config_kw[field.name] = deserialize_value(flat_data[field.name], field.type)
-                else:
-                    if any(k.startswith(field.name + ".") for k in flat_data.keys()):
-                        value = build_inner_dict(flat_data, field.name)
-                        value = unflatten_dict(value)
+        result[k] = v
 
-                        try:
-                            config_kw[field.name] = deserialize_value(value, field.type)
-                        except ValueError as value_exc:
-                            raise ValueError(
-                                f"Cannot deserialize {value} as {field.type} (in {field.name})"
-                            ) from value_exc
-
-                    # If the field is required, raise a KeyError, otherwise ignore
-                    elif is_field_required(field):
-                        raise KeyError(f"Field {field.name} in {config_cls} is required, but was not specified.")
-            except ValueError as exc:
-                raise ValueError(f"invalid value for {config_cls.__name__}.{field.name}: {exc.args[0]}") from exc
-        else:
-            # Field stores a dataclass instances
-            inner_conf_file = flat_data.pop(field.name, None)
-
-            inner_dict = build_inner_dict(flat_data, field.name)
-
-            if inner_conf_file:
-                # load from configuration path first
-                logger.info("Loading required configuration file '%s'", str(inner_conf_file))
-
-                nested_loaded_data = read_config_file(inner_conf_file)
-
-                # Flatten the nested data
-                new_flat_data: Dict[str, Any] = flatten_dict(nested_loaded_data)
-
-                # Overwrite all the given flat key-value pairs
-                new_flat_data.update(inner_dict)
-
-                inner_dict = new_flat_data
-
-            config_kw[field.name] = from_dict(field.type, inner_dict)
-
-    return cast(T, config_cls(**config_kw))
+    return result
 
 
-def to_dict(config) -> dict:
+def to_dict(dataclass_instance: Any, config: Optional[SerializationConfig] = None) -> dict:
     """Represent the fields and values of configuration as a (nested) dict."""
-
-    d = dataclasses.asdict(config)
-
-    return nested_serialization(d)
+    config = config or SerializationConfig()
+    return apply_nested_type_mapping(dataclasses.asdict(dataclass_instance), config.reverse_type_hooks)
 
 
-def to_file(config, path: PathLike):
+def to_file(dataclass_instance, path: PathLike, config: Optional[SerializationConfig] = None):
     """Write config to json, toml, or yaml file."""
-    data = to_dict(config)
-    write_config_file(path, data)
-
-
-def nested_serialization(d):
-    if isinstance(d, dict):
-        return {k: nested_serialization(v) for k, v in d.items()}
-    else:
-        return serialize_value(d)
-
-
-def serialize_value(value):
-    if isinstance(value, Path):
-        return str(value)
-
-    elif isinstance(value, datetime):
-        return datetime.isoformat(value)
-
-    elif isinstance(value, timedelta):
-        return value.total_seconds()
-
-    elif dataclasses.is_dataclass(value):
-        return to_dict(value)
-
-    else:
-        return value
-
-
-def deserialize_value(value: Any, cls: Type):
-    if not inspect.isclass(cls):
-        origin = get_origin(cls)
-
-        if origin is Literal:
-            # Value must be from this set
-            choices = get_args(cls)
-            arg_type = type(choices[0])
-
-            if any((not isinstance(c, arg_type) for c in choices)):
-                raise TypeError(f"If Literal is used, all values must be of the same type ({cls}).")
-
-            if value not in choices:
-                raise TypeError(f"Value {value} not in {cls}")
-
-        elif origin is Union:
-            args = get_args(cls)
-
-            if value is None:
-                if None in args or type(None) in args:
-                    return None
-                else:
-                    raise ValueError(f"Cannot deserialize None as {cls}")
-            else:
-                for arg in args:
-                    try:
-                        return deserialize_value(value, arg)
-                    except (TypeError, ValueError):
-                        pass
-
-                raise ValueError(f"Cannot deserialize value {value} as {cls}")
-
-        elif origin is tuple:
-            args = get_args(cls)
-
-            if len(args) == 2 and args[1] == ...:
-                # check that all elements in value conform to the provided args
-                return tuple(deserialize_value(v, args[0]) for v in value)
-
-            elif len(args) > 0:
-                if len(args) != len(value):
-                    raise ValueError(f"{value} has incorrect number of elements for {cls}.")
-
-                return tuple(deserialize_value(v, a) for v, a in zip(value, args))
-            else:
-                try:
-                    return tuple(value)
-                except TypeError as exc:
-                    raise ValueError(f"Cannot deserialize {type(value)} as {cls}") from exc
-
-        elif origin is list:
-            try:
-                args = get_args(cls)
-                if len(args) == 0:
-                    return list(value)
-                else:
-                    return [deserialize_value(v, args[0]) for v in value]
-            except TypeError as exc:
-                raise ValueError(f"Cannot deserialize {type(value)} as {cls}") from exc
-
-        elif origin is dict:
-            assert isinstance(value, dict)
-            return value
-
-        elif cls is Any:
-            return value
-
-        else:
-            raise ValueError(f"Cannot not deserialize {cls}")
-    else:
-        if issubclass(cls, Path):
-            return Path(value)
-
-        elif issubclass(cls, float):
-            return float(value)
-
-        elif issubclass(cls, bool):
-            return bool(value)
-
-        elif issubclass(cls, int):
-            return int(value)
-
-        elif issubclass(cls, datetime):
-            return datetime.fromisoformat(value)
-
-        elif issubclass(cls, timedelta):
-            return timedelta(seconds=value)
-
-        elif issubclass(cls, str):
-            return str(value)
-
-        else:
-            raise TypeError(f"Cannot not deserialize {cls}")
+    config = config or SerializationConfig()
+    return write_dict_to_file(path, to_dict(dataclass_instance, config))
