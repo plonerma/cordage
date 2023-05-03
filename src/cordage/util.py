@@ -11,6 +11,11 @@ logger = logging.getLogger("cordage")
 T = TypeVar("T")
 
 
+serialization_map = {Path: str, datetime: datetime.isoformat, timedelta: lambda v: v.total_seconds()}
+
+deserialization_map = {datetime: lambda v: datetime.fromisoformat(v), timedelta: lambda v: timedelta(seconds=v)}
+
+types_to_cast = [Path, float, bool, int, str]
 def get_loader(extension):
     """Load relevant module for reading a file with the given extension."""
     if extension not in ("toml", "yaml", "yml", "yl", "json"):
