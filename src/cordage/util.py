@@ -3,19 +3,29 @@ import logging
 from datetime import datetime, timedelta
 from os import PathLike
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Type, TypeVar
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Type, TypeVar
 
+import dacite
 
 logger = logging.getLogger("cordage")
 
 T = TypeVar("T")
 
 
-serialization_map = {Path: str, datetime: datetime.isoformat, timedelta: lambda v: v.total_seconds()}
+serialization_map: Dict[Type[Any], Callable[..., Any]] = {
+    Path: str,
+    datetime: datetime.isoformat,
+    timedelta: lambda v: v.total_seconds(),
+}
 
-deserialization_map = {datetime: lambda v: datetime.fromisoformat(v), timedelta: lambda v: timedelta(seconds=v)}
+deserialization_map: Dict[Type[Any], Callable[..., Any]] = {
+    datetime: lambda v: datetime.fromisoformat(v),
+    timedelta: lambda v: timedelta(seconds=v),
+}
 
-types_to_cast = [Path, float, bool, int, str]
+types_to_cast: List[Type[Any]] = [Path, float, bool, int, str, tuple]
+
+
 def get_loader(extension):
     """Load relevant module for reading a file with the given extension."""
     if extension not in ("toml", "yaml", "yml", "yl", "json"):
@@ -130,7 +140,7 @@ def nested_update(target_dict: Dict, update_dict: Mapping):
     return target_dict
 
 
-def nest_dict(flat_dict: Dict[str, Any]) -> Dict[str, Any]:
+def nest_items(flat_items: Iterable[Tuple[str, Any]]) -> Dict[str, Any]:
     """Unflatten a dict.
 
     If any keys contain '.', sub-dicts will be created.
@@ -138,7 +148,7 @@ def nest_dict(flat_dict: Dict[str, Any]) -> Dict[str, Any]:
     nested_dict: Dict[str, Any] = {}
     dicts_to_nest: List[str] = []
 
-    for k, v in flat_dict.items():
+    for k, v in flat_items:
         if "." not in k:
             nested_dict[k] = v
 
@@ -151,13 +161,18 @@ def nest_dict(flat_dict: Dict[str, Any]) -> Dict[str, Any]:
             nested_dict[prefix][remainder] = v
 
     for k in dicts_to_nest:
-        nested_dict[k] = nest_dict(nested_dict[k])
+        nested_dict[k] = nest_items(nested_dict[k].items())
 
     return nested_dict
 
 
+def from_dict(data_class: Type[T], data: Mapping, config: Optional[dacite.Config] = None) -> T:
+    config = config or dacite.Config(cast=types_to_cast, type_hooks=deserialization_map)
+    return dacite.from_dict(data_class, data, config)
 
 
+def from_file(config_cls: Type[T], path: PathLike, config: Optional[dacite.Config] = None):
+    config = config or dacite.Config(cast=types_to_cast, type_hooks=deserialization_map)
 
     data: Mapping = read_dict_from_file(path)
     return from_dict(config_cls, data, config)
@@ -179,13 +194,11 @@ def apply_nested_type_mapping(data: Mapping, type_mapping: Mapping[Type, Callabl
     return result
 
 
-def to_dict(dataclass_instance: Any, config: Optional[SerializationConfig] = None) -> dict:
+def to_dict(dataclass_instance: Any) -> dict:
     """Represent the fields and values of configuration as a (nested) dict."""
-    config = config or SerializationConfig()
-    return apply_nested_type_mapping(dataclasses.asdict(dataclass_instance), config.reverse_type_hooks)
+    return apply_nested_type_mapping(dataclasses.asdict(dataclass_instance), serialization_map)
 
 
-def to_file(dataclass_instance, path: PathLike, config: Optional[SerializationConfig] = None):
+def to_file(dataclass_instance, path: PathLike):
     """Write config to json, toml, or yaml file."""
-    config = config or SerializationConfig()
-    return write_dict_to_file(path, to_dict(dataclass_instance, config))
+    return write_dict_to_file(path, to_dict(dataclass_instance))

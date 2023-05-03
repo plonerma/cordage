@@ -14,7 +14,7 @@ from docstring_parser import parse as parse_docstring
 
 from .experiment import Series
 from .global_config import GlobalConfig
-from .util import from_dict, nest_dict, nested_update, read_dict_from_file
+from .util import from_dict, nest_items, nested_update, read_dict_from_file
 
 
 class MissingType:
@@ -52,12 +52,12 @@ class ConfigurationParser(Generic[T]):
 
         config_path = argument_data.pop(".", None)
 
-        argument_data = nest_dict(argument_data)
+        argument_data = nest_items(argument_data.items())
 
         if config_path is not None:
             new_conf_data = read_dict_from_file(config_path)
 
-            new_conf_data = nest_dict(new_conf_data)
+            new_conf_data = nest_items(new_conf_data.items())
 
             series_spec = new_conf_data.pop(self.global_config.series_spec_key, None)
 

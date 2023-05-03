@@ -20,7 +20,7 @@ except ImportError:
     colorlog = None  # type: ignore
 
 from .global_config import GlobalConfig
-from .util import from_dict, logger, nest_dict, nested_items, nested_update, to_dict
+from .util import from_dict, logger, nest_items, nested_items, nested_update, to_dict
 
 T = TypeVar("T")
 
@@ -494,8 +494,6 @@ class Series(Generic[T], Experiment):
             for config_update in series_spec:
                 assert isinstance(config_update, dict)
 
-            series_spec = [nest_dict(config_update) for config_update in series_spec]
-
         elif isinstance(series_spec, dict):
 
             def only_list_nodes(d):
@@ -542,26 +540,34 @@ class Series(Generic[T], Experiment):
 
     def get_trial_updates(self) -> Generator[Dict, None, None]:
         if isinstance(self.series_spec, list):
-            yield from self.series_spec
+            for trial_update in self.series_spec:
+                yield nest_items(trial_update.items())
         elif isinstance(self.series_spec, dict):
             keys, values = zip(*nested_items(self.series_spec))
 
             keys = [".".join(k) for k in keys]
 
             for update_values in product(*values):
-                yield nest_dict(dict(zip(keys, update_values)))
+                logger.debug("Computing update")
+                logger.debug(keys)
+                logger.debug(nest_items(zip(keys, update_values)))
+                yield nest_items(zip(keys, update_values))
         else:
             yield {}
 
     def __len__(self):
         if isinstance(self.series_spec, list):
-            assert self.trials is None or len(self.trials) == len(self.series_spec)
+            assert self.trials is None or len(self.trials) == len(
+                self.series_spec
+            ), f"Number of existing ({len(self.trials)}) and expected trials ({len(self.series_spec)}) do not match."
             return len(self.series_spec)
         elif isinstance(self.series_spec, dict):
             num_trials = 1
-            for values in self.series_spec.values():
+            for _, values in nested_items(self.series_spec):
                 num_trials *= len(values)
-            assert self.trials is None or len(self.trials) == num_trials
+            assert (
+                self.trials is None or len(self.trials) == num_trials
+            ), f"Number of existing ({len(self.trials)}) and expected trials ({num_trials}) do not match."
             return num_trials
         else:
             return 1
@@ -603,6 +609,9 @@ class Series(Generic[T], Experiment):
                     trial_config_data = deepcopy(self.base_config)
                 else:
                     trial_config_data = to_dict(self.base_config)
+
+                logger.debug("Base configuration: %s", str(trial_config_data))
+                logger.debug("Trial update: %s", str(trial_update))
 
                 nested_update(trial_config_data, trial_update)
 
