@@ -160,7 +160,9 @@ class MetadataStore:
             if not suffix_matches:
                 logger.warning(
                     "Could not reconstruct base output directory (expected suffix: '%s', actual path: '%s'.",
-                    str(rel_theoretical_output_dir), str(metadata.output_dir))
+                    str(rel_theoretical_output_dir),
+                    str(metadata.output_dir),
+                )
             else:
                 # compute number of levels to go up
                 levels = len(rel_theoretical_output_dir.parts) - 1
