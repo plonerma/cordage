@@ -78,6 +78,18 @@ class MetadataStore:
             self.metadata = Metadata(global_config=global_config, **kw)
 
     @property
+    def experiment_id(self):
+        if self.metadata.experiment_id is None:
+            raise RuntimeError(f"{self.__class__.__name__} has not been started yet.")
+        else:
+            return self.metadata.experiment_id
+
+    def output_dir_from_id(self, experiment_id: Optional[str]):
+        metadata = {**self.metadata.__dict__, "experiment_id": experiment_id}
+
+        return self.global_config.base_output_dir / self.global_config.output_dir_format.format(**metadata)
+
+    @property
     def global_config(self) -> GlobalConfig:
         return self.metadata.global_config
 
@@ -137,6 +149,22 @@ class MetadataStore:
                 f"({metadata.output_dir} -> {path.parent})"
             )
             metadata.output_dir = path.parent
+
+            # adjust global_config.base_output_dir
+            rel_theoretical_output_dir = Path(metadata.global_config.output_dir_format.format(**metadata.__dict__))
+
+            suffix_matches = all(
+                a == b for a, b in zip(metadata.output_dir.parts[::-1], rel_theoretical_output_dir.parts[::-1])
+            )
+
+            if not suffix_matches:
+                logger.warning(
+                    "Could not reconstruct base output directory (expected suffix: '%s', actual path: '%s'.",
+                    str(rel_theoretical_output_dir), str(metadata.output_dir))
+            else:
+                # compute number of levels to go up
+                levels = len(rel_theoretical_output_dir.parts) - 1
+                metadata.global_config.base_output_dir = metadata.output_dir.parents[levels]
 
         return metadata
 
@@ -208,13 +236,6 @@ class Experiment(Annotatable):
 
         self.log_handlers: List[logging.Handler] = []
 
-    @property
-    def experiment_id(self):
-        if self.metadata.experiment_id is None:
-            raise RuntimeError(f"{self.__class__.__name__} has not been started yet.")
-        else:
-            return self.metadata.experiment_id
-
     def __repr__(self):
         if self.metadata.experiment_id is not None:
             return f"{self.__class__.__name__} (id: {self.experiment_id}, status: {self.status})"
@@ -263,11 +284,6 @@ class Experiment(Annotatable):
         self.save_metadata()
         self.save_annotations()
         self.teardown_log()
-
-    def output_dir_from_id(self, experiment_id: str):
-        metadata = {**self.metadata.__dict__, "experiment_id": experiment_id}
-
-        return self.global_config.base_output_dir / self.global_config.output_dir_format.format(**metadata)
 
     def create_unique_id(self):
         ideal_id = self.global_config.experiment_id_format.format(**self.metadata.__dict__)
@@ -331,6 +347,8 @@ class Experiment(Annotatable):
             self.metadata = self.load_metadata(self.metadata.output_dir)
 
             self.load_annotations()
+        else:
+            logger.warning("No metadata found. Skipping synchronization.")
 
         return self
 
