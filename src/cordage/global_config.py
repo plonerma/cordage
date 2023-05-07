@@ -19,12 +19,6 @@ class FileTreeConfig:
 
 
 @dataclass
-class CentralMetadataConfig:
-    use: bool = False
-    path: Path = Path("~/.cordage").expanduser()
-
-
-@dataclass
 class LoggingConfig:
     use: bool = True
     to_stream: bool = True
@@ -47,8 +41,6 @@ class GlobalConfig:
     param_names: ParameterNameConfig = field(default_factory=ParameterNameConfig)
 
     file_tree: FileTreeConfig = field(default_factory=FileTreeConfig)
-
-    central_metadata: CentralMetadataConfig = field(default_factory=CentralMetadataConfig)
 
     logging: LoggingConfig = field(default_factory=LoggingConfig)
 

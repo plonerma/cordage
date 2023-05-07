@@ -15,8 +15,6 @@ class Config:
 def test_timing(global_config):
     trial_store: List[cordage.Trial] = []
 
-    global_config.central_metadata.use = True
-
     def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):
         trial_store.append(cordage_trial)
         sleep(1)
@@ -35,23 +33,6 @@ def test_timing(global_config):
     assert metadata_path.exists()
 
     experiment = Experiment.from_path(metadata_path)
-    metadata = experiment.metadata
-
-    assert metadata.duration.total_seconds() < 1.1
-    assert metadata.duration.total_seconds() > 0.9
-    assert metadata.status == "complete"
-
-    rel_dir = trial.output_dir.relative_to(global_config.base_output_dir)
-
-    central_metadata = global_config.central_metadata.path / rel_dir / "metadata.json"
-
-    assert central_metadata.exists()
-
-    central_annotations = global_config.central_metadata.path / rel_dir / "annotations.json"
-
-    assert central_annotations.exists()
-
-    experiment = Experiment.from_path(central_metadata)
     metadata = experiment.metadata
 
     assert metadata.duration.total_seconds() < 1.1

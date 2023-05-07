@@ -100,39 +100,15 @@ class MetadataStore:
         else:
             return self.metadata.output_dir
 
-    def use_central_store(self, create=False) -> bool:
-        if not self.global_config.central_metadata.use:
-            return False
-
-        elif create:
-            self.central_output_dir.mkdir(parents=True, exist_ok=True)
-            return True
-
-        else:
-            return self.central_output_dir.exists()
-
-    @property
-    def central_output_dir(self) -> Path:
-        rel_path = self.output_dir.relative_to(self.global_config.base_output_dir)
-        return self.global_config.central_metadata.path / rel_path
-
     @property
     def metadata_path(self):
         return self.output_dir / "cordage.json"
-
-    @property
-    def central_metadata_path(self):
-        return self.central_output_dir / "metadata.json"
 
     def save_metadata(self):
         md_dict = self.metadata.to_dict()
 
         with open(self.metadata_path, "w", encoding="utf-8") as fp:
             json.dump(md_dict, fp, indent=4)
-
-        if self.use_central_store(create=True):
-            with self.central_metadata_path.open("w", encoding="utf-8") as fp:
-                json.dump(md_dict, fp, indent=4)
 
     @classmethod
     def load_metadata(cls, path: PathLike) -> Metadata:
@@ -211,20 +187,12 @@ class Annotatable(MetadataStore):
         self.annotations["comment"] = value
 
     @property
-    def central_annotations_path(self):
-        return self.central_output_dir / "annotations.json"
-
-    @property
     def annotations_path(self):
         return self.output_dir / "annotations.json"
 
     def save_annotations(self):
         with open(self.annotations_path, "w", encoding="utf-8") as fp:
             json.dump(self.annotations, fp, indent=4)
-
-        if self.use_central_store():
-            with open(self.central_annotations_path, "w", encoding="utf-8") as fp:
-                json.dump(self.annotations, fp, indent=4)
 
     def load_annotations(self):
         if self.annotations_path.exists():
@@ -247,10 +215,6 @@ class Experiment(Annotatable):
     @property
     def log_path(self):
         return self.output_dir / self.global_config.logging.filename
-
-    @property
-    def central_log_path(self) -> Path:
-        return self.central_output_dir / self.global_config.logging.filename
 
     @property
     def status(self) -> str:
@@ -429,14 +393,6 @@ class Experiment(Annotatable):
             logger.addHandler(handler)
             self.log_handlers.append(handler)
 
-            # setup logging to central output_dir
-            if self.use_central_store():
-                handler = logging.FileHandler(self.central_log_path)
-                handler.setFormatter(formatter)
-
-                logger.addHandler(handler)
-                self.log_handlers.append(handler)
-
     def teardown_log(self):
         logger = colorlog.getLogger()
 
@@ -449,12 +405,6 @@ class Trial(Generic[T], Experiment):
     @property
     def config(self):
         return self.metadata.configuration
-
-    def end(self, *args, **kwargs):
-        super().end(*args, **kwargs)
-
-        if self.use_central_store():
-            self.save_file_tree(self.central_metadata_path.parent / "files.json")
 
     def save_file_tree(self, save_path):
         with save_path.open("w", encoding="utf-8") as fp:
