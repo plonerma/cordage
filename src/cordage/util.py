@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta
 from os import PathLike
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Type, TypeVar, Union, cast
 
 import dacite
 
@@ -210,9 +210,16 @@ def apply_nested_type_mapping(data: Mapping, type_mapping: Mapping[Type, Callabl
     return result
 
 
-def to_dict(dataclass_instance: Any) -> dict:
+def to_dict(data: Any) -> dict:
     """Represent the fields and values of configuration as a (nested) dict."""
-    return apply_nested_type_mapping(dataclasses.asdict(dataclass_instance), serialization_map)
+    mapping: Mapping
+
+    if dataclasses.is_dataclass(data):
+        mapping = dataclasses.asdict(data)
+    else:
+        mapping = cast(Mapping, data)
+
+    return apply_nested_type_mapping(mapping, serialization_map)
 
 
 def to_file(dataclass_instance, path: PathLike):
