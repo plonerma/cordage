@@ -28,11 +28,10 @@ class NestedConfig:
 
 def test_nested_config(global_config):
     def func(config: NestedConfig):
-        assert config.data.name == "mnist"
-        assert config.data.version == 1
-        assert isinstance(config.hyper_params.learning_rate, float)
-        assert config.hyper_params.learning_rate == 2.0
-        assert config.hyper_params.weight_decay == 0.0
+        assert config == NestedConfig(
+            data=DataConfig(name="mnist", version=1),
+            hyper_params=HyperParameterConfig(learning_rate=2.0, weight_decay=0.0),
+        )
 
     cordage.run(
         func,
