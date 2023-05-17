@@ -139,7 +139,7 @@ def flattened_items(nested_dict: Dict[Any, Any], prefix: tuple = (), sep=None):
 def nested_update(target_dict: Dict, update_dict: Mapping):
     """Update a nested dictionary."""
     for k, v in update_dict.items():
-        if isinstance(v, Mapping) and isinstance(target_dict[k], dict):
+        if isinstance(v, Mapping) and k in target_dict and isinstance(target_dict[k], dict):
             nested_update(target_dict[k], v)
         else:
             target_dict[k] = v

@@ -40,6 +40,22 @@ def test_nested_config(global_config):
     )
 
 
+def test_nested_config_overwrite(global_config, resources_path):
+    def func(config: NestedConfig):
+        assert config == NestedConfig(
+            data=DataConfig(name="mnist", version=1),
+            hyper_params=HyperParameterConfig(learning_rate=2.0, weight_decay=0.0),
+        )
+
+    config_file = resources_path / "test_config_nested_c.json"
+
+    cordage.run(
+        func,
+        args=[str(config_file), "--data.name", "mnist", "--data.version", "1", "--hyper_params.learning_rate", "2"],
+        global_config=global_config,
+    )
+
+
 def test_nested_loading(global_config, resources_path):
     def func(config: NestedConfig):
         assert config.data.name == "mnist"
