@@ -37,6 +37,7 @@ class GlobalConfig:
 
     series_spec_key = "__series__"
     series_skip_key = "__series-skip__"
+    series_comment_key = "__series-comment__"
 
     param_names: ParameterNameConfig = field(default_factory=ParameterNameConfig)
 

@@ -580,7 +580,9 @@ class Series(Generic[T], Experiment):
         if self.series_spec is None:
             # single trial experiment
             logger.debug("Configuration yields a single experiment.")
-            self.trials = [self.make_trial(configuration=self.base_config)]
+            single_trial = self.make_trial(configuration=self.base_config)
+            single_trial.annotations = self.annotations
+            self.trials = [single_trial]
 
         else:
             logger.debug("The given configuration yields an experiment series with %d experiments.", len(self))

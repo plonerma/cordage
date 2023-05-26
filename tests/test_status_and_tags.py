@@ -1,3 +1,4 @@
+import io
 from dataclasses import dataclass, field
 
 import pytest
@@ -82,3 +83,18 @@ def test_trial_series_list(global_config, resources_path):
 
     # Since we only load top level experiments, only the series should show up
     assert len(Experiment.all_from_path(global_config.base_output_dir)) == 1
+
+
+def test_annotation_message(global_config, monkeypatch):
+    TEST_COMMENT = "Some string\nwith newline"
+
+    def func(config: Config, cordage_trial):
+        print(cordage_trial.annotations)
+
+    monkeypatch.setattr("sys.stdin", io.StringIO(TEST_COMMENT))
+
+    cordage.run(func, args=["--series-comment", "--alpha.a", "1"], global_config=global_config)
+
+    exp = Experiment.from_path(global_config.base_output_dir / "experiment")
+    assert exp.comment == TEST_COMMENT
+    assert exp.annotations["comment"] == TEST_COMMENT

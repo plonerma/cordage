@@ -71,15 +71,29 @@ class ConfigurationParser(Generic[T]):
         # series skip might be given via the command line ("--series-skip <n>") or a config file "__series-skip__"
         series_skip = argument_data.pop(self.global_config.series_skip_key, None)
 
+        # series comment might be given via the command line ("--series-skip") or a config file "__series-skip__"
+        series_comment = argument_data.pop(self.global_config.series_comment_key, None)
+
         base_config: T = from_dict(self.main_config_cls, argument_data)
 
-        return Series(
+        series = Series(
             base_config=base_config,
             global_config=self.global_config,
             series_spec=series_spec,
             series_skip=series_skip,
             additional_info={"description": self.description, "parsed_arguments": args},
         )
+
+        if series_comment is True:
+            # get comment from stdin
+            comment = ""
+            for line in sys.stdin:
+                comment += line
+            series.comment = comment
+        elif isinstance(series_comment, str):
+            series.comment = series_comment
+
+        return series
 
     def construct_config_parser(self, **kw) -> argparse.ArgumentParser:
         """Construct an argparser for a given config class."""
@@ -100,6 +114,14 @@ class ConfigurationParser(Generic[T]):
             help="Skip first n trials in the execution of a series.",
             default=MISSING,
             dest=self.global_config.series_skip_key,
+        )
+
+        parser.add_argument(
+            "--series-comment",
+            action="store_true",
+            help="Add a comment to the annotation of this series.",
+            default=MISSING,
+            dest=self.global_config.series_comment_key,
         )
 
         return parser
