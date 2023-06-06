@@ -49,13 +49,13 @@ def test_simple_config(global_config):
     cordage.run(func, args=["--a", "1", "--b", "~"], global_config=global_config)
 
 
-def test_config_loading(global_config, resources_path):
+def loading(global_config, resources_path):
     def func(config: Config):
         assert config.a == 1
         assert isinstance(config.b, Path)
         assert config.c == "some_other_value"
 
-    config_file = resources_path / "test_config_simple_a.toml"
+    config_file = resources_path / "simple_a.toml"
 
     cordage.run(func, args=[str(config_file), "--c", "some_other_value"], global_config=global_config)
 
@@ -64,7 +64,7 @@ def test_literal_fields(global_config, resources_path):
     def func(config: Config):
         pass
 
-    config_file = resources_path / "test_config_simple_b.json"
+    config_file = resources_path / "simple_b.json"
 
     with pytest.raises(cordage.WrongTypeError):
         cordage.run(func, args=[str(config_file)], global_config=global_config)
@@ -74,7 +74,7 @@ def test_tuple_length_fields(global_config, resources_path):
     def func(config: Config):
         pass
 
-    config_file = resources_path / "test_config_simple_c.toml"
+    config_file = resources_path / "simple_c.toml"
 
     with pytest.raises(cordage.WrongTypeError):
         cordage.run(func, args=[str(config_file)], global_config=global_config)
@@ -85,7 +85,7 @@ def test_valid_mixed_tuple(global_config, resources_path):
     def func(config: Config):
         pass
 
-    config_file = resources_path / "test_config_simple_d.json"
+    config_file = resources_path / "simple_d.json"
 
     cordage.run(func, args=[str(config_file)], global_config=global_config)
 
@@ -95,7 +95,7 @@ def test_invalid_mixed_tuple(global_config, resources_path):
     def func(config: Config):
         pass
 
-    config_file = resources_path / "test_config_simple_e.toml"
+    config_file = resources_path / "simple_e.toml"
 
     with pytest.raises(cordage.WrongTypeError):
         cordage.run(func, args=[str(config_file)], global_config=global_config)
@@ -105,7 +105,7 @@ def test_valid_optional(global_config, resources_path):
     def func(config: Config):
         pass
 
-    config_file = resources_path / "test_config_simple_f.json"
+    config_file = resources_path / "simple_f.json"
 
     cordage.run(func, args=[str(config_file)], global_config=global_config)
 

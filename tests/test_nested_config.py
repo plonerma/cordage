@@ -47,7 +47,7 @@ def test_nested_config_overwrite(global_config, resources_path):
             hyper_params=HyperParameterConfig(learning_rate=2.0, weight_decay=0.0),
         )
 
-    config_file = resources_path / "test_config_nested_c.json"
+    config_file = resources_path / "nested_c.json"
 
     cordage.run(
         func,
@@ -64,7 +64,7 @@ def test_nested_loading(global_config, resources_path):
         assert config.hyper_params.learning_rate == 2.0
         assert config.hyper_params.weight_decay == 0.0
 
-    config_file = resources_path / "test_config_nested_a.json"
+    config_file = resources_path / "nested_a.json"
 
     cordage.run(
         func,
@@ -81,7 +81,7 @@ def test_mixed_nested_loading(global_config, resources_path):
         assert config.hyper_params.learning_rate == 2.0
         assert config.hyper_params.weight_decay == 0.0
 
-    config_file = resources_path / "test_config_nested_b.yaml"
+    config_file = resources_path / "nested_b.yaml"
 
     cordage.run(
         func,

@@ -47,7 +47,7 @@ def test_trial_series_list(global_config, resources_path):
 
         assert cordage_series.get_changing_fields() == {("alpha", "a"), ("alpha", "b"), ("beta", "a")}
 
-    config_file = resources_path / "test_config_series_list.yml"
+    config_file = resources_path / "series_list.yml"
 
     cordage.run(func, args=[str(config_file)], global_config=global_config)
 
@@ -75,7 +75,7 @@ def test_trial_series_loading(global_config, resources_path, capsys):
 
         logger.warning("Trial with alpha.b=%s", config.alpha.b)
 
-    config_file = resources_path / "test_config_series_list.yml"
+    config_file = resources_path / "series_list.yml"
 
     cordage.run(func, args=[str(config_file)], global_config=global_config)
 
@@ -123,7 +123,7 @@ def test_more_trial_series(global_config, resources_path, letter):
     def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):
         trial_store.append(cordage_trial)
 
-    config_file = resources_path / f"test_config_series_{letter}.toml"
+    config_file = resources_path / f"series_{letter}.toml"
 
     cordage.run(func, args=[str(config_file), "--alpha.b", "b_incorrect"], global_config=global_config)
 
@@ -151,7 +151,7 @@ def test_invalid_trial_series(global_config, resources_path):
     def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):
         trial_store.append(cordage_trial)
 
-    config_file = resources_path / "test_config_series_invalid.json"
+    config_file = resources_path / "series_invalid.json"
 
     with pytest.raises(ValueError):
         cordage.run(func, args=[str(config_file)], global_config=global_config)
@@ -167,7 +167,7 @@ def test_trial_skipping(global_config, resources_path):
     def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):
         trial_store.append(cordage_trial)
 
-    config_file = resources_path / "test_config_series_list.yml"
+    config_file = resources_path / "series_list.yml"
 
     cordage.run(func, args=[str(config_file), "--series-skip", "1"], global_config=global_config)
 

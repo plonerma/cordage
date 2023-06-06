@@ -63,7 +63,7 @@ def test_trial_series_list(global_config, resources_path):
 
             raise RuntimeError()
 
-    config_file = resources_path / "test_config_series_list.yml"
+    config_file = resources_path / "series_list.yml"
 
     with pytest.raises(RuntimeError):
         cordage.run(func, args=[str(config_file)], global_config=global_config)
