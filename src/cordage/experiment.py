@@ -6,6 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from dataclasses import replace as dataclass_replace
 from datetime import datetime
+from io import StringIO
 from itertools import count, product
 from json.decoder import JSONDecodeError
 from math import ceil, floor, log10
@@ -36,6 +37,8 @@ class Metadata:
     end_time: Optional[datetime] = None
 
     configuration: Any = None
+
+    result: Any = None
 
     additional_info: Dict = field(default_factory=dict)
 
@@ -106,6 +109,14 @@ class MetadataStore:
 
     def save_metadata(self):
         md_dict = self.metadata.to_dict()
+
+        try:
+            # test if the result is serializable
+            stream = StringIO()
+            json.dump(self.metadata.result, stream)
+        except TypeError:
+            # can't serialize return value, replace in with None
+            md_dict["result"] = None
 
         with open(self.metadata_path, "w", encoding="utf-8") as fp:
             json.dump(md_dict, fp, indent=4)
@@ -223,6 +234,14 @@ class Experiment(Annotatable):
     @status.setter
     def status(self, value: str):
         self.metadata.status = value
+
+    @property
+    def result(self) -> Any:
+        return self.metadata.result
+
+    @result.setter
+    def result(self, value: Any):
+        self.metadata.result = value
 
     def has_status(self, *status: str):
         return len(status) == 0 or self.status in status

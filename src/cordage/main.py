@@ -137,4 +137,4 @@ def run(
                         # pass trial object
                         func_kw[name] = series
 
-                func(**func_kw)
+                trial.result = func(**func_kw)
