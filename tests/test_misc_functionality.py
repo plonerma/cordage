@@ -13,15 +13,12 @@ class Config:
 
 
 def test_timing(global_config):
-    trial_store: List[cordage.Trial] = []
-
-    def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):
-        trial_store.append(cordage_trial)
+    def func(config: Config, cordage_trial: cordage.Trial):
         sleep(1)
 
-    cordage.run(func, args=[], global_config=global_config)
+    series = cordage.run(func, args=[], global_config=global_config)
 
-    trial = trial_store[0]
+    trial = next(iter(series))
 
     assert trial.metadata.duration.total_seconds() < 1.1
     assert trial.metadata.duration.total_seconds() > 0.9
@@ -59,14 +56,11 @@ def test_trial_id_collision(global_config):
 
 
 def test_return_value_capturing_dict(global_config):
-    trial_store: List[cordage.Trial] = []
-
-    def func(config: Config, cordage_trial, trial_store=trial_store):
-        trial_store.append(cordage_trial)
+    def func(config: Config, cordage_trial):
         return dict(a=1, b="string")
 
-    cordage.run(func, args=[], global_config=global_config)
-    trial = trial_store[0]
+    series = cordage.run(func, args=[], global_config=global_config)
+    trial = next(iter(series))
 
     metadata_path = trial.output_dir / "cordage.json"
 
@@ -89,11 +83,10 @@ def test_return_value_capturing_float(global_config):
     trial_store: List[cordage.Trial] = []
 
     def func(config: Config, cordage_trial, trial_store=trial_store):
-        trial_store.append(cordage_trial)
         return 0.0
 
-    cordage.run(func, args=[], global_config=global_config)
-    trial = trial_store[0]
+    series = cordage.run(func, args=[], global_config=global_config)
+    trial = next(iter(series))
 
     metadata_path = trial.output_dir / "cordage.json"
 
@@ -110,15 +103,12 @@ def test_return_value_capturing_unserializable(global_config):
     class SomeObject:
         pass
 
-    trial_store: List[cordage.Trial] = []
-
-    def func(config: Config, cordage_trial, trial_store=trial_store):
-        trial_store.append(cordage_trial)
+    def func(config: Config, cordage_trial):
         return SomeObject()
 
-    cordage.run(func, args=[], global_config=global_config)
+    series = cordage.run(func, args=[], global_config=global_config)
 
-    trial = trial_store[0]
+    trial = next(iter(series))
 
     metadata_path = trial.output_dir / "cordage.json"
 

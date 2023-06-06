@@ -66,7 +66,7 @@ def run(
     description=None,
     config_cls=None,
     global_config: Union[PathLike, Dict, GlobalConfig, None] = None,
-) -> None:
+) -> Series:
     logger.debug("Loading global configuration.")
 
     global_config = get_global_config(global_config)
@@ -138,3 +138,5 @@ def run(
                         func_kw[name] = series
 
                 trial.result = func(**func_kw)
+
+    return series

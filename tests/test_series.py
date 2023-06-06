@@ -146,10 +146,8 @@ def test_more_trial_series(global_config, resources_path, letter):
 
 
 def test_invalid_trial_series(global_config, resources_path):
-    trial_store: List[cordage.Trial] = []
-
-    def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):
-        trial_store.append(cordage_trial)
+    def func(config: Config, cordage_trial: cordage.Trial):
+        pass
 
     config_file = resources_path / "series_invalid.json"
 
