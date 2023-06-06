@@ -50,6 +50,9 @@ class ConfigurationParser(Generic[T]):
         argument_data: dict = vars(self.parser.parse_args(args))
         argument_data = self.remove_missing_values(argument_data)
 
+        # series comment might be given via the command line ("--series-skip")
+        series_comment_flag = argument_data.pop(self.global_config.series_comment_key, False)
+
         config_path = argument_data.pop(".", None)
 
         argument_data = nest_items(argument_data.items())
@@ -65,14 +68,15 @@ class ConfigurationParser(Generic[T]):
 
             argument_data = new_conf_data
 
+            # another series comment might be given via the config file ("__series-skip__")
+            # in this case, the comments are added to another
+            conf_file_comment = argument_data.pop(self.global_config.series_comment_key, None)
         else:
             series_spec = None
+            conf_file_comment = None
 
         # series skip might be given via the command line ("--series-skip <n>") or a config file "__series-skip__"
         series_skip = argument_data.pop(self.global_config.series_skip_key, None)
-
-        # series comment might be given via the command line ("--series-skip") or a config file "__series-skip__"
-        series_comment = argument_data.pop(self.global_config.series_comment_key, None)
 
         base_config: T = from_dict(self.main_config_cls, argument_data)
 
@@ -84,14 +88,22 @@ class ConfigurationParser(Generic[T]):
             additional_info={"description": self.description, "parsed_arguments": args},
         )
 
-        if series_comment is True:
+        if series_comment_flag is True:
+            if conf_file_comment is not None:
+                # add the stdin commnent after the config file comment
+                comment = conf_file_comment + "\n\n"
+            else:
+                # there is not comment in the config file, but user passes one via stdin
+                comment = ""
+
             # get comment from stdin
-            comment = ""
             for line in sys.stdin:
                 comment += line
             series.comment = comment
-        elif isinstance(series_comment, str):
-            series.comment = series_comment
+
+        elif conf_file_comment is not None:
+            # only use the comment from the config file
+            series.comment = conf_file_comment
 
         return series
 

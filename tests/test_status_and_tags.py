@@ -85,7 +85,7 @@ def test_trial_series_list(global_config, resources_path):
     assert len(Experiment.all_from_path(global_config.base_output_dir)) == 1
 
 
-def test_annotation_message(global_config, monkeypatch):
+def test_annotation_comment(global_config, monkeypatch):
     TEST_COMMENT = "Some string\nwith newline"
 
     def func(config: Config, cordage_trial):
@@ -98,3 +98,36 @@ def test_annotation_message(global_config, monkeypatch):
     exp = Experiment.from_path(global_config.base_output_dir / "experiment")
     assert exp.comment == TEST_COMMENT
     assert exp.annotations["comment"] == TEST_COMMENT
+
+
+def test_annotation_comment_addition(global_config, monkeypatch, resources_path):
+    TEST_COMMENT = "Some string\nwith newline"
+    EXPECTED_COMMENT = f"Config file comment\n\n{TEST_COMMENT}"
+
+    def func(config: Config, cordage_trial):
+        print(cordage_trial.annotations)
+
+    monkeypatch.setattr("sys.stdin", io.StringIO(TEST_COMMENT))
+
+    conf_path = resources_path / "annotation.yaml"
+
+    cordage.run(func, args=["--series-comment", str(conf_path)], global_config=global_config)
+
+    exp = Experiment.from_path(global_config.base_output_dir / "experiment")
+    assert exp.comment == EXPECTED_COMMENT
+    assert exp.annotations["comment"] == EXPECTED_COMMENT
+
+
+def test_config_annotation_comment(global_config, resources_path):
+    EXPECTED_COMMENT = "Config file comment"
+
+    def func(config: Config, cordage_trial):
+        print(cordage_trial.annotations)
+
+    conf_path = resources_path / "annotation.yaml"
+
+    cordage.run(func, args=[str(conf_path)], global_config=global_config)
+
+    exp = Experiment.from_path(global_config.base_output_dir / "experiment")
+    assert exp.comment == EXPECTED_COMMENT
+    assert exp.annotations["comment"] == EXPECTED_COMMENT
