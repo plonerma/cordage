@@ -11,10 +11,11 @@ from dacite.exceptions import (
 
 from .experiment import Experiment, Series, Trial
 from .global_config import GlobalConfig
-from .main import run
+from .main import FunctionContext, run
 
 __all__ = [
     "run",
+    "FunctionContext",
     "Experiment",
     "Trial",
     "GlobalConfig",

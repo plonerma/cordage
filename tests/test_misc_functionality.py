@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from time import sleep
 from typing import List
 
+import pytest
+
 import cordage
 from cordage import Experiment
 
@@ -16,9 +18,7 @@ def test_timing(global_config):
     def func(config: Config, cordage_trial: cordage.Trial):
         sleep(1)
 
-    series = cordage.run(func, args=[], global_config=global_config)
-
-    trial = next(iter(series))
+    trial = cordage.run(func, args=[], global_config=global_config)
 
     assert trial.metadata.duration.total_seconds() < 1.1
     assert trial.metadata.duration.total_seconds() > 0.9
@@ -59,8 +59,7 @@ def test_return_value_capturing_dict(global_config):
     def func(config: Config, cordage_trial):
         return dict(a=1, b="string")
 
-    series = cordage.run(func, args=[], global_config=global_config)
-    trial = next(iter(series))
+    trial = cordage.run(func, args=[], global_config=global_config)
 
     metadata_path = trial.output_dir / "cordage.json"
 
@@ -85,8 +84,7 @@ def test_return_value_capturing_float(global_config):
     def func(config: Config, cordage_trial, trial_store=trial_store):
         return 0.0
 
-    series = cordage.run(func, args=[], global_config=global_config)
-    trial = next(iter(series))
+    trial = cordage.run(func, args=[], global_config=global_config)
 
     metadata_path = trial.output_dir / "cordage.json"
 
@@ -106,9 +104,7 @@ def test_return_value_capturing_unserializable(global_config):
     def func(config: Config, cordage_trial):
         return SomeObject()
 
-    series = cordage.run(func, args=[], global_config=global_config)
-
-    trial = next(iter(series))
+    trial = cordage.run(func, args=[], global_config=global_config)
 
     metadata_path = trial.output_dir / "cordage.json"
 
@@ -118,3 +114,26 @@ def test_return_value_capturing_unserializable(global_config):
     metadata = experiment.metadata
 
     assert metadata.result is None
+
+
+def test_exception_logging(global_config):
+    """If an (uncaught) exception is thrown in the experiment, it should be logged and noted in the metadata."""
+
+    def func(config: Config):
+        raise RuntimeError("Exception42")
+
+    context = cordage.FunctionContext(func, global_config=global_config)
+    trial = context.parse([])
+
+    with pytest.raises(RuntimeError):
+        context.execute(trial)
+
+    assert trial.has_status("failed")
+    assert "exception" in trial.metadata.additional_info
+    assert "Exception42" in trial.metadata.additional_info["exception"]["short"]
+    assert "Exception42" in trial.metadata.additional_info["exception"]["traceback"]
+
+    with open(trial.log_path, "r") as f:
+        log_content = f.read()
+
+    assert "Exception42" in log_content

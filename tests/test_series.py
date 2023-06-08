@@ -42,14 +42,16 @@ class Config:
 def test_trial_series_list(global_config, resources_path):
     trial_store: List[cordage.Trial] = []
 
-    def func(config: Config, cordage_trial: cordage.Trial, cordage_series, trial_store=trial_store):
+    def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):
         trial_store.append(cordage_trial)
-
-        assert cordage_series.get_changing_fields() == {("alpha", "a"), ("alpha", "b"), ("beta", "a")}
 
     config_file = resources_path / "series_list.yml"
 
-    cordage.run(func, args=[str(config_file)], global_config=global_config)
+    series = cordage.run(func, args=[str(config_file)], global_config=global_config)
+
+    assert isinstance(series, Series)
+
+    assert series.get_changing_fields() == {("alpha", "a"), ("alpha", "b"), ("beta", "a")}
 
     assert len(trial_store) == 3
     assert trial_store[0].config.alpha.a == 1

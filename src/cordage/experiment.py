@@ -1,7 +1,6 @@
 import json
 import logging
 import re
-from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field
 from dataclasses import replace as dataclass_replace
@@ -12,7 +11,7 @@ from json.decoder import JSONDecodeError
 from math import ceil, floor, log10
 from os import PathLike
 from pathlib import Path
-from traceback import format_exc
+from traceback import format_exception
 from typing import Any, Dict, Generator, Generic, Iterable, List, Mapping, Optional, Set, TypeVar, Union, cast
 
 try:
@@ -297,26 +296,29 @@ class Experiment(Annotatable):
 
         return self.output_dir
 
-    def handle_exception(self, exc):
-        self.metadata.additional_info["exception"] = {"short": repr(exc), "traceback": format_exc()}
+    def handle_exception(self, exc_type, exc_value, traceback):
+        traceback_string = "".join(format_exception(exc_type, value=exc_value, tb=traceback))
 
-    @contextmanager
-    def run(self):
-        try:
-            self.start()
-            logger.info("%s '%s' started.", self.__class__.__name__, self.experiment_id)
-            yield self
+        logger.exception("", exc_info=(exc_type, exc_value, traceback))
+        self.metadata.additional_info["exception"] = {"short": repr(exc_value), "traceback": traceback_string}
+
+    def __enter__(self):
+        self.start()
+        logger.info("%s '%s' started.", self.__class__.__name__, self.experiment_id)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type is None:
             logger.info("%s '%s' completed.", self.__class__.__name__, self.experiment_id)
             self.end(status="complete")
-        except KeyboardInterrupt:
+        elif issubclass(exc_type, KeyboardInterrupt):
             logger.warning("%s '%s' aborted.", self.__class__.__name__, self.experiment_id)
             self.end(status="aborted")
-            raise
-        except Exception as exc:
-            self.handle_exception(exc)
+            return False
+        else:
+            self.handle_exception(exc_type, exc_value, traceback)
             logger.warning("%s '%s' failed.", self.__class__.__name__, self.experiment_id)
             self.end(status="failed")
-            raise
+            return False
 
     def synchronize(self):
         """Synchronize to existing output directory."""
@@ -522,13 +524,15 @@ class Series(Generic[T], Experiment):
     def is_singular(self):
         return self.series_spec is None
 
-    @contextmanager
-    def run(self):
-        if self.is_singular:
-            yield self
-        else:
-            with super().run():
-                yield self
+    def __enter__(self):
+        if not self.is_singular:
+            super().__enter__()
+        # else: do nothing
+
+    def __exit__(self, *args):
+        if not self.is_singular:
+            super().__exit__(*args)
+        # else: do nothing
 
     def get_changing_fields(self):
         keys = set()
@@ -638,9 +642,9 @@ class Series(Generic[T], Experiment):
         return self.get_all_trials(include_skipped=False)
 
     def get_all_trials(self, include_skipped: bool = False) -> Generator[Trial[T], None, None]:
-        if self.series_spec is not None:
-            assert self.trials is not None
+        assert self.trials is not None
 
+        if not self.is_singular:
             skip = 0 if include_skipped else self.series_skip
 
             for i, trial in enumerate(self.trials[skip:], start=skip):
@@ -651,5 +655,5 @@ class Series(Generic[T], Experiment):
 
                 yield trial
         else:
-            assert self.trials is not None
+            assert len(self.trials) == 1
             yield self.trials[0]
