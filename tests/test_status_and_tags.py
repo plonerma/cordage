@@ -131,3 +131,12 @@ def test_config_annotation_comment(global_config, resources_path):
     exp = Experiment.from_path(global_config.base_output_dir / "experiment")
     assert exp.comment == EXPECTED_COMMENT
     assert exp.annotations["comment"] == EXPECTED_COMMENT
+
+
+def test_function_name_saving(global_config, resources_path):
+    def func(config: Config):
+        pass
+
+    conf_path = resources_path / "annotation.yaml"
+
+    cordage.run(func, args=[str(conf_path)], global_config=global_config)

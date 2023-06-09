@@ -27,7 +27,10 @@ T = TypeVar("T")
 
 @dataclass
 class Metadata:
+    function: str
+
     global_config: GlobalConfig
+
     output_dir: Optional[Path] = None
     experiment_id: Optional[str] = None
     status: str = "pending"

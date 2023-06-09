@@ -38,6 +38,7 @@ class ConfigurationParser(Generic[T]):
         self.parser = self.construct_config_parser(**kw)
 
         self.description = kw.get("description")
+        self.func_name = kw.get("func_name")
 
     def parse_all(self, args=None) -> Series[T]:
         if args is None:
@@ -81,6 +82,7 @@ class ConfigurationParser(Generic[T]):
         base_config: T = from_dict(self.main_config_cls, argument_data)
 
         series = Series(
+            function=self.func_name,
             base_config=base_config,
             global_config=self.global_config,
             series_spec=series_spec,
