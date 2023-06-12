@@ -137,3 +137,26 @@ def test_exception_logging(global_config):
         log_content = f.read()
 
     assert "Exception42" in log_content
+
+
+def test_return_config_class_casting(global_config):
+    def func(config: Config, cordage_trial):
+        pass
+
+    trial = cordage.run(func, args=["--a", "1", "--b", "2"], global_config=global_config)
+
+    metadata_path = trial.output_dir / "cordage.json"
+
+    assert metadata_path.exists()
+
+    # try loading as dict
+    experiment = Experiment.from_path(metadata_path)
+    assert isinstance(experiment.config, dict)
+    assert experiment.config["a"] == 1
+    assert experiment.config["b"] == "2"
+
+    # try loading with config class
+    experiment = Experiment.from_path(metadata_path, config_cls=Config)
+    assert isinstance(experiment.config, Config)
+    assert experiment.config.a == 1
+    assert experiment.config.b == "2"

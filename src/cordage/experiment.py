@@ -12,7 +12,7 @@ from math import ceil, floor, log10
 from os import PathLike
 from pathlib import Path
 from traceback import format_exception
-from typing import Any, Dict, Generator, Generic, Iterable, List, Mapping, Optional, Set, TypeVar, Union, cast
+from typing import Any, Dict, Generator, Generic, Iterable, List, Mapping, Optional, Set, Type, TypeVar, Union, cast
 
 try:
     import colorlog
@@ -343,13 +343,20 @@ class Experiment(Annotatable):
         return self
 
     @classmethod
-    def from_path(cls, path: PathLike):
+    def from_path(cls, path: PathLike, config_cls: Optional[Type] = None):
         metadata: Metadata = cls.load_metadata(path)
 
         experiment: Experiment
         if not metadata.is_series:
+            if config_cls is not None:
+                metadata.configuration = from_dict(config_cls, metadata.configuration)
+
             experiment = Trial(metadata)
+
         else:
+            if config_cls is not None:
+                metadata.configuration["base_config"] = from_dict(config_cls, metadata.configuration["base_config"])
+
             experiment = Series(metadata)
 
         experiment.load_annotations()
