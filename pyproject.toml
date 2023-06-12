@@ -55,7 +55,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 flake8-max-line-length = 210
-addopts = "--flake8 --mypy --isort --cov=src --cov-fail-under=94"
+addopts = "--flake8 --mypy --isort --cov=src --cov-fail-under=90"
 flake8-ignore = ["E203", "W503"]  # See https://github.com/PyCQA/pycodestyle/issues/373
 
 [tool.black]

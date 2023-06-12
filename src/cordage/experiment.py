@@ -425,6 +425,19 @@ class Experiment(Annotatable):
 
 
 class Trial(Generic[T], Experiment):
+    def __init__(
+        self,
+        metadata: Optional[Metadata] = None,
+        /,
+        config: Optional[T] = None,
+        **kw,
+    ):
+        if metadata is not None:
+            assert len(kw) == 0 and config is None
+            super().__init__(metadata)
+        else:
+            super().__init__(configuration=config, **kw)
+
     @property
     def config(self):
         return self.metadata.configuration

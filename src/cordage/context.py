@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, Literal, Mapping, Optional, Type, TypeVa
 from docstring_parser import parse as parse_docstring
 
 from .experiment import Experiment, Series, Trial
-from .global_config import GlobalConfig
+from .global_config import GlobalConfig, get_global_config
 from .util import from_dict as config_from_dict
 from .util import logger, nest_items, nested_update, read_dict_from_file
 
@@ -25,10 +25,6 @@ MISSING = MissingType()
 T = TypeVar("T")
 
 SUPPORTED_PRIMITIVES = (int, bool, str, float, Path)
-
-
-PROJECT_SPECIFIC_CONFIG_PATH = Path("./cordage_configuration.json")
-GLOBAL_CONFIG_PATH: Path = Path("~/.config/cordage.json")
 
 
 class FunctionContext:
@@ -49,9 +45,9 @@ class FunctionContext:
         func: Callable,
         description: Optional[str] = None,
         config_cls: Optional[Type] = None,
-        global_config: Union[PathLike, Dict, GlobalConfig, None] = None,
+        global_config: Union[str, PathLike, Dict, GlobalConfig, None] = None,
     ):
-        self.set_global_config(global_config)
+        self.global_config = get_global_config(global_config)
         self.set_function(func)
         self.set_config_cls(config_cls)
         self.set_description(description)
@@ -100,164 +96,6 @@ class FunctionContext:
 
         if self.global_config.param_names.config not in self.func_parameters:
             raise TypeError(f"Callable must accept config argument (as `{self.global_config.param_names.config}`).")
-
-    def set_global_config(self, global_config: Union[PathLike, Dict, GlobalConfig, None]):
-        logger.debug("Loading global configuration.")
-
-        if isinstance(global_config, dict):
-            # Dictionary given: create configuration based on these values
-            self.global_config = config_from_dict(GlobalConfig, global_config)
-
-        elif isinstance(global_config, (str, Path)):
-            # Path given: load configuration file from this path
-            global_config = Path(global_config)
-            if not global_config.exists():
-                raise FileNotFoundError(f"Given cordage configuration path ({global_config}) does not exist.")
-
-            self.global_config = config_from_dict(GlobalConfig, {".": global_config})
-
-        elif isinstance(global_config, GlobalConfig):
-            self.global_config = global_config
-
-        elif global_config is None:
-            # Go through config file order
-
-            # 1. Check if a project specific configuration file exists
-            if PROJECT_SPECIFIC_CONFIG_PATH.exists():
-                self.global_config = config_from_dict(GlobalConfig, {".": PROJECT_SPECIFIC_CONFIG_PATH})
-
-            # 2. Check if a global configuration file exists
-            elif GLOBAL_CONFIG_PATH.exists():
-                self.global_config = config_from_dict(GlobalConfig, {".": GLOBAL_CONFIG_PATH})
-
-            # 3. Use the default values
-            else:
-                logger.warning(
-                    "No cordage configuration given. Using default values. Use a project specific (%s) or global"
-                    "configuration (%s) to change the behavior.",
-                    PROJECT_SPECIFIC_CONFIG_PATH,
-                    GLOBAL_CONFIG_PATH,
-                )
-                self.global_config = GlobalConfig()
-        else:
-            raise TypeError("`global_config` must be one of PathLike, dict, cordage.GlobalConfig, None")
-
-    def execute(self, experiment: Experiment):
-        if isinstance(experiment, Trial):
-            logger.debug("Running trial")
-
-            # execute function with the constructed keyword arguments
-            with experiment:
-                logger.debug("Started execution")
-
-                func_kw = self.construct_func_kwargs(experiment)
-
-                experiment.metadata.result = self.func(**func_kw)
-        elif isinstance(experiment, Series):
-            with experiment:
-                for trial in experiment:
-                    self.execute(trial)
-        else:
-            raise TypeError("Passed object must be Trial or Series")
-
-    def construct_func_kwargs(self, trial: Trial):
-        # construct arguments for the passed callable
-        func_kw: Dict[str, Any] = {}
-
-        # check if any other parameters are expected which can be resolved
-        for name, param in self.func_parameters.items():
-            assert param.kind != param.POSITIONAL_ONLY, "Cordage currently does not support positional only parameters."
-
-            if name == self.global_config.param_names.config:
-                # pass the configuration
-                func_kw[name] = trial.config
-
-            elif name == self.global_config.param_names.output_dir:
-                # pass path to output directory
-                if issubclass(param.annotation, str):
-                    func_kw[name] = str(trial.output_dir)
-                else:
-                    func_kw[name] = trial.output_dir
-
-            elif name == self.global_config.param_names.trial_object:
-                # pass trial object
-                func_kw[name] = trial
-
-        return func_kw
-
-    def parse_args(self, args=None) -> Experiment:
-        if args is None:
-            # args default to the system args
-            args = sys.argv[1:]
-        else:
-            args = list(args)
-
-        # construct parser
-        argument_data: dict = vars(self.argument_parser.parse_args(args))
-        argument_data = self.remove_missing_values(argument_data)
-
-        # series comment might be given via the command line ("--series-skip")
-        series_comment_flag = argument_data.pop(self.global_config._series_comment_key, False)
-
-        config_path = argument_data.pop(".", None)
-
-        argument_data = nest_items(argument_data.items())
-
-        if config_path is not None:
-            new_conf_data = read_dict_from_file(config_path)
-
-            new_conf_data = nest_items(new_conf_data.items())
-
-            series_spec = new_conf_data.pop(self.global_config._series_spec_key, None)
-
-            nested_update(new_conf_data, argument_data)
-
-            argument_data = new_conf_data
-
-            # another series comment might be given via the config file ("__series-skip__")
-            # in this case, the comments are added to another
-            conf_file_comment = argument_data.pop(self.global_config._series_comment_key, None)
-        else:
-            series_spec = None
-            conf_file_comment = None
-
-        # series skip might be given via the command line ("--series-skip <n>") or a config file "__series-skip__"
-        series_skip = argument_data.pop(self.global_config._series_skip_key, None)
-
-        base_config = config_from_dict(self.main_config_cls, argument_data, strict=self.global_config.strict_mode)
-
-        series: Series = Series(
-            function=self.func_name,
-            base_config=base_config,
-            global_config=self.global_config,
-            series_spec=series_spec,
-            series_skip=series_skip,
-            additional_info={"description": self.description, "parsed_arguments": args},
-        )
-
-        if series_comment_flag is True:
-            if conf_file_comment is not None:
-                # add the stdin commnent after the config file comment
-                comment = conf_file_comment + "\n\n"
-            else:
-                # there is not comment in the config file, but user passes one via stdin
-                comment = ""
-
-            # get comment from stdin
-            for line in sys.stdin:
-                comment += line
-            series.comment = comment
-
-        elif conf_file_comment is not None:
-            # only use the comment from the config file
-            series.comment = conf_file_comment
-
-        logger.debug("%d experiments found in configuration", len(series))
-
-        if series.is_singular:
-            return next(iter(series))
-        else:
-            return series
 
     def construct_argument_parser(self):
         """Construct an argparser for a given config class."""
@@ -367,3 +205,158 @@ class FunctionContext:
 
     def remove_missing_values(self, data: Mapping) -> Dict[str, Any]:
         return {k: v for k, v in data.items() if v is not MISSING}
+
+    def construct_func_kwargs(self, trial: Trial):
+        # construct arguments for the passed callable
+        func_kw: Dict[str, Any] = {}
+
+        # check if any other parameters are expected which can be resolved
+        for name, param in self.func_parameters.items():
+            assert param.kind != param.POSITIONAL_ONLY, "Cordage currently does not support positional only parameters."
+
+            if name == self.global_config.param_names.config:
+                # pass the configuration
+                func_kw[name] = trial.config
+
+            elif name == self.global_config.param_names.output_dir:
+                # pass path to output directory
+                if issubclass(param.annotation, str):
+                    func_kw[name] = str(trial.output_dir)
+                else:
+                    func_kw[name] = trial.output_dir
+
+            elif name == self.global_config.param_names.trial_object:
+                # pass trial object
+                func_kw[name] = trial
+
+        return func_kw
+
+    def parse_args(self, args=None) -> Experiment:
+        if args is None:
+            # args default to the system args
+            args = sys.argv[1:]
+        else:
+            args = list(args)
+
+        # construct parser
+        argument_data: dict = vars(self.argument_parser.parse_args(args))
+        argument_data = self.remove_missing_values(argument_data)
+
+        # series comment might be given via the command line ("--series-skip")
+        series_comment_flag = argument_data.pop(self.global_config._series_comment_key, False)
+
+        config_path = argument_data.pop(".", None)
+
+        argument_data = nest_items(argument_data.items())
+
+        if config_path is not None:
+            new_conf_data = read_dict_from_file(config_path)
+
+            new_conf_data = nest_items(new_conf_data.items())
+
+            series_spec = new_conf_data.pop(self.global_config._series_spec_key, None)
+
+            nested_update(new_conf_data, argument_data)
+
+            argument_data = new_conf_data
+
+            # another series comment might be given via the config file ("__series-skip__")
+            # in this case, the comments are added to another
+            conf_file_comment = argument_data.pop(self.global_config._series_comment_key, None)
+        else:
+            series_spec = None
+            conf_file_comment = None
+
+        # series skip might be given via the command line ("--series-skip <n>") or a config file "__series-skip__"
+        series_skip = argument_data.pop(self.global_config._series_skip_key, None)
+
+        base_config = config_from_dict(self.main_config_cls, argument_data, strict=self.global_config.strict_mode)
+
+        series: Series = Series(
+            function=self.func_name,
+            base_config=base_config,
+            global_config=self.global_config,
+            series_spec=series_spec,
+            series_skip=series_skip,
+            additional_info={"description": self.description, "parsed_arguments": args},
+        )
+
+        if series_comment_flag is True:
+            if conf_file_comment is not None:
+                # add the stdin commnent after the config file comment
+                comment = conf_file_comment + "\n\n"
+            else:
+                # there is not comment in the config file, but user passes one via stdin
+                comment = ""
+
+            # get comment from stdin
+            for line in sys.stdin:
+                comment += line
+            series.comment = comment
+
+        elif conf_file_comment is not None:
+            # only use the comment from the config file
+            series.comment = conf_file_comment
+
+        logger.debug("%d experiments found in configuration", len(series))
+
+        if series.is_singular:
+            return next(iter(series))
+        else:
+            return series
+
+    def from_configuration(
+        self,
+        config=None,
+        base_config=None,
+        series_spec=None,
+        series_skip: Optional[int] = None,
+        comment: Optional[str] = None,
+    ) -> Experiment:
+        _usage = "Either pass `config` or `base_config` and `series_spec`"
+
+        if config is not None:
+            assert base_config is None and series_spec is None and series_skip is None, _usage
+
+            trial: Trial = Trial(
+                function=self.func_name,
+                config=config,
+                global_config=self.global_config,
+                additional_info={"description": self.description},
+            )
+
+            trial.comment = comment
+
+            return trial
+
+        else:
+            assert base_config is not None and series_spec is not None
+
+            series: Series = Series(
+                function=self.func_name,
+                base_config=base_config,
+                global_config=self.global_config,
+                series_spec=series_spec,
+                series_skip=series_skip,
+                additional_info={"description": self.description},
+            )
+            series.comment = comment
+            return series
+
+    def execute(self, experiment: Experiment):
+        if isinstance(experiment, Trial):
+            logger.debug("Running trial")
+
+            # execute function with the constructed keyword arguments
+            with experiment:
+                logger.debug("Started execution")
+
+                func_kw = self.construct_func_kwargs(experiment)
+
+                experiment.metadata.result = self.func(**func_kw)
+        elif isinstance(experiment, Series):
+            with experiment:
+                for trial in experiment:
+                    self.execute(trial)
+        else:
+            raise TypeError("Passed object must be Trial or Series")

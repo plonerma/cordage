@@ -3,7 +3,7 @@ from time import sleep
 from typing import List
 
 import cordage
-from cordage import Experiment
+from cordage import Experiment, FunctionContext, Series, Trial
 
 
 @dataclass
@@ -115,7 +115,7 @@ def test_return_value_capturing_unserializable(global_config):
 
 
 def test_return_config_class_casting(global_config):
-    def func(config: Config, cordage_trial):
+    def func(config: Config):
         pass
 
     trial = cordage.run(func, args=["--a", "1", "--b", "2"], global_config=global_config)
@@ -135,6 +135,23 @@ def test_return_config_class_casting(global_config):
     assert isinstance(experiment.config, Config)
     assert experiment.config.a == 1
     assert experiment.config.b == "2"
+
+
+def test_function_context_from_configuration(global_config):
+    def func(config: Config):
+        pass
+
+    context = FunctionContext(func)
+
+    trial = context.from_configuration(config=Config())
+
+    assert isinstance(trial, Trial)
+
+    series = context.from_configuration(base_config=Config(), series_spec={"a": [1, 2, 3]})
+
+    assert isinstance(series, Series)
+
+    assert len(series) == 3
 
 
 def test_output_dir_path_correction(global_config, monkeypatch, tmp_path):
