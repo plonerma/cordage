@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta
 from os import PathLike
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Type, TypeVar, Union, cast
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Tuple, Type, TypeVar, Union, cast
 
 import dacite
 
@@ -182,16 +182,14 @@ def nest_items(flat_items: Iterable[Tuple[Union[str, Tuple[str, ...]], Any]]) ->
     return nested_dict
 
 
-def from_dict(data_class: Type[T], data: Mapping, config: Optional[dacite.Config] = None) -> T:
-    config = config or dacite.Config(cast=types_to_cast, type_hooks=deserialization_map)
+def from_dict(data_class: Type[T], data: Mapping, strict: bool = True) -> T:
+    config = dacite.Config(cast=types_to_cast, type_hooks=deserialization_map, strict=strict)
     return dacite.from_dict(data_class, data, config)
 
 
-def from_file(config_cls: Type[T], path: PathLike, config: Optional[dacite.Config] = None):
-    config = config or dacite.Config(cast=types_to_cast, type_hooks=deserialization_map)
-
+def from_file(config_cls: Type[T], path: PathLike, **kwargs):
     data: Mapping = read_dict_from_file(path)
-    return from_dict(config_cls, data, config)
+    return from_dict(config_cls, data, **kwargs)
 
 
 def apply_nested_type_mapping(data: Mapping, type_mapping: Mapping[Type, Callable]):

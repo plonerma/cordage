@@ -34,9 +34,11 @@ class GlobalConfig:
     experiment_id_format: str = "{start_time:%Y-%m-%d_%H-%M-%S}"
     output_dir_format: str = "{start_time:%Y-%m}/{experiment_id}"
 
-    series_spec_key = "__series__"
-    series_skip_key = "__series-skip__"
-    series_comment_key = "__series-comment__"
+    _series_spec_key = "__series__"
+    _series_skip_key = "__series-skip__"
+    _series_comment_key = "__series-comment__"
+
+    strict_mode: bool = True
 
     param_names: ParameterNameConfig = field(default_factory=ParameterNameConfig)
 

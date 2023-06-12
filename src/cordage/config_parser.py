@@ -52,7 +52,7 @@ class ConfigurationParser(Generic[T]):
         argument_data = self.remove_missing_values(argument_data)
 
         # series comment might be given via the command line ("--series-skip")
-        series_comment_flag = argument_data.pop(self.global_config.series_comment_key, False)
+        series_comment_flag = argument_data.pop(self.global_config._series_comment_key, False)
 
         config_path = argument_data.pop(".", None)
 
@@ -63,7 +63,7 @@ class ConfigurationParser(Generic[T]):
 
             new_conf_data = nest_items(new_conf_data.items())
 
-            series_spec = new_conf_data.pop(self.global_config.series_spec_key, None)
+            series_spec = new_conf_data.pop(self.global_config._series_spec_key, None)
 
             nested_update(new_conf_data, argument_data)
 
@@ -71,15 +71,15 @@ class ConfigurationParser(Generic[T]):
 
             # another series comment might be given via the config file ("__series-skip__")
             # in this case, the comments are added to another
-            conf_file_comment = argument_data.pop(self.global_config.series_comment_key, None)
+            conf_file_comment = argument_data.pop(self.global_config._series_comment_key, None)
         else:
             series_spec = None
             conf_file_comment = None
 
         # series skip might be given via the command line ("--series-skip <n>") or a config file "__series-skip__"
-        series_skip = argument_data.pop(self.global_config.series_skip_key, None)
+        series_skip = argument_data.pop(self.global_config._series_skip_key, None)
 
-        base_config: T = from_dict(self.main_config_cls, argument_data)
+        base_config: T = from_dict(self.main_config_cls, argument_data, strict=self.global_config.strict_mode)
 
         series = Series(
             function=self.func_name,
@@ -127,7 +127,7 @@ class ConfigurationParser(Generic[T]):
             metavar="n",
             help="Skip first n trials in the execution of a series.",
             default=MISSING,
-            dest=self.global_config.series_skip_key,
+            dest=self.global_config._series_skip_key,
         )
 
         parser.add_argument(
@@ -135,7 +135,7 @@ class ConfigurationParser(Generic[T]):
             action="store_true",
             help="Add a comment to the annotation of this series.",
             default=MISSING,
-            dest=self.global_config.series_comment_key,
+            dest=self.global_config._series_comment_key,
         )
 
         return parser

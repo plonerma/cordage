@@ -1,4 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+import pytest
 
 import cordage
 
@@ -23,7 +25,7 @@ class HyperParameterConfig:
 @dataclass
 class NestedConfig:
     data: DataConfig
-    hyper_params: HyperParameterConfig
+    hyper_params: HyperParameterConfig = field(default_factory=HyperParameterConfig)
 
 
 def test_nested_config(global_config):
@@ -88,3 +90,15 @@ def test_mixed_nested_loading(global_config, resources_path):
         args=[str(config_file), "--data.version", "2"],
         global_config=global_config,
     )
+
+
+def test_additional_keys_exception(global_config, resources_path):
+    def func(config: NestedConfig):
+        pass
+
+    with pytest.raises(cordage.UnexpectedDataError):
+        cordage.run(func, args=[str(resources_path / "nested_add_key.json")], global_config=global_config)
+
+    # with strict mode off, this should not raise an exception
+    global_config.strict_mode = False
+    cordage.run(func, args=[str(resources_path / "nested_add_key.json")], global_config=global_config)
