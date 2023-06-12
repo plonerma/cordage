@@ -123,7 +123,7 @@ def test_exception_logging(global_config):
         raise RuntimeError("Exception42")
 
     context = cordage.FunctionContext(func, global_config=global_config)
-    trial = context.parse([])
+    trial = context.parse_args([])
 
     with pytest.raises(RuntimeError):
         context.execute(trial)

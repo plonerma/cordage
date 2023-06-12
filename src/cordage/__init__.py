@@ -1,3 +1,6 @@
+from os import PathLike
+from typing import Callable, Dict, List, Optional, Type, Union
+
 from dacite.exceptions import (
     DaciteError,
     DaciteFieldError,
@@ -9,9 +12,23 @@ from dacite.exceptions import (
     WrongTypeError,
 )
 
+from .context import FunctionContext
 from .experiment import Experiment, Series, Trial
 from .global_config import GlobalConfig
-from .main import FunctionContext, run
+
+
+def run(
+    func: Callable,
+    args: Optional[List[str]] = None,
+    description: Optional[str] = None,
+    config_cls: Optional[Type] = None,
+    global_config: Union[PathLike, Dict, GlobalConfig, None] = None,
+) -> Experiment:
+    context = FunctionContext(func, description=description, config_cls=config_cls, global_config=global_config)
+    experiment = context.parse_args(args)
+    context.execute(experiment)
+    return experiment
+
 
 __all__ = [
     "run",
