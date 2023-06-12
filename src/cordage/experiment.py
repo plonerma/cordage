@@ -233,17 +233,9 @@ class Experiment(Annotatable):
     def status(self) -> str:
         return self.metadata.status
 
-    @status.setter
-    def status(self, value: str):
-        self.metadata.status = value
-
     @property
     def result(self) -> Any:
         return self.metadata.result
-
-    @result.setter
-    def result(self, value: Any):
-        self.metadata.result = value
 
     def has_status(self, *status: str):
         return len(status) == 0 or self.status in status
@@ -366,7 +358,7 @@ class Experiment(Annotatable):
     @classmethod
     def all_from_path(
         cls,
-        results_path: PathLike,
+        results_path: Union[str, PathLike],
     ) -> List["Experiment"]:
         """Load all experiments from the results_path."""
         results_path = Path(results_path)
@@ -436,33 +428,6 @@ class Trial(Generic[T], Experiment):
     @property
     def config(self):
         return self.metadata.configuration
-
-    def save_file_tree(self, save_path):
-        with save_path.open("w", encoding="utf-8") as fp:
-            json.dump(self.produce_file_tree(self.output_dir), fp, indent=4)
-
-    def produce_file_tree(self, path, level=0):
-        max_level = self.global_config.file_tree.max_level
-        max_files = self.global_config.file_tree.max_files
-
-        if path.is_dir():
-            if level > self.global_config.file_tree.max_level:
-                return f"Maximum depth of {max_level} exceeded."
-
-            dir_dict = {}
-
-            for i, p in enumerate(path.iterdir()):
-                if i == max_files:
-                    return f"Maximum number of files ({max_files}) exceeded."
-
-                dir_dict[p.name] = self.produce_file_tree(p, level=level + 1)
-
-            return dir_dict
-
-        elif path.is_file():
-            return path.stat().st_size
-        else:
-            return None
 
 
 class Series(Generic[T], Experiment):

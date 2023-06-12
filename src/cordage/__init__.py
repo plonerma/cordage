@@ -13,7 +13,7 @@ from dacite.exceptions import (
 )
 
 from .context import FunctionContext
-from .experiment import Experiment, Series, Trial
+from .experiment import Experiment, Metadata, Series, Trial
 from .global_config import GlobalConfig
 
 
@@ -35,6 +35,7 @@ __all__ = [
     "FunctionContext",
     "Experiment",
     "Trial",
+    "Metadata",
     "GlobalConfig",
     "Series",
     "DaciteError",

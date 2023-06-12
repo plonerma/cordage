@@ -51,8 +51,8 @@ class FunctionContext:
         config_cls: Optional[Type] = None,
         global_config: Union[PathLike, Dict, GlobalConfig, None] = None,
     ):
-        self.set_function(func)
         self.set_global_config(global_config)
+        self.set_function(func)
         self.set_config_cls(config_cls)
         self.set_description(description)
         self.construct_argument_parser()
@@ -70,10 +70,7 @@ class FunctionContext:
     def set_config_cls(self, config_cls: Optional[Type] = None):
         # derive configuration class
         if config_cls is None:
-            try:
-                self.main_config_cls = self.func_parameters[self.global_config.param_names.config].annotation
-            except KeyError as exc:
-                raise TypeError(f"Callable must accept config in `{self.global_config.param_names.config}`.") from exc
+            self.main_config_cls = self.func_parameters[self.global_config.param_names.config].annotation
 
         else:
             self.main_config_cls = config_cls
@@ -100,6 +97,9 @@ class FunctionContext:
         self._func = func
         self._func_parameters = inspect.signature(func).parameters
         self._func_name = self.func.__name__
+
+        if self.global_config.param_names.config not in self.func_parameters:
+            raise TypeError(f"Callable must accept config argument (as `{self.global_config.param_names.config}`).")
 
     def set_global_config(self, global_config: Union[PathLike, Dict, GlobalConfig, None]):
         logger.debug("Loading global configuration.")
@@ -152,7 +152,7 @@ class FunctionContext:
 
                 func_kw = self.construct_func_kwargs(experiment)
 
-                experiment.result = self.func(**func_kw)
+                experiment.metadata.result = self.func(**func_kw)
         elif isinstance(experiment, Series):
             with experiment:
                 for trial in experiment:
@@ -288,12 +288,12 @@ class FunctionContext:
             dest=self.global_config._series_comment_key,
         )
 
-    def _add_argument_to_parser(self, arg_name: str, arg_type: Any, **kw):
+    def _add_argument_to_parser(self, arg_name: str, arg_type: Any, help: str, **kw):
         # If the field is also a dataclass, recurse (nested config)
         if dataclasses.is_dataclass(arg_type):
             self.add_arguments_to_parser(arg_type, prefix=arg_name)
 
-            self.argument_parser.add_argument(f"--{arg_name}", type=Path, default=MISSING, **kw)
+            self.argument_parser.add_argument(f"--{arg_name}", type=Path, default=MISSING, help=help, **kw)
         else:
             # Look the field annotation to determine which type of argument to add
 
@@ -308,7 +308,7 @@ class FunctionContext:
                     raise TypeError(f"If Literal is used, all values must be of the same type ({arg_name}).")
 
                 self.argument_parser.add_argument(
-                    f"--{arg_name}", type=literal_arg_type, choices=choices, default=MISSING, **kw
+                    f"--{arg_name}", type=literal_arg_type, choices=choices, default=MISSING, help=help, **kw
                 )
 
             elif get_origin(arg_type) is Union:
@@ -316,7 +316,7 @@ class FunctionContext:
 
                 if len(args) == 2 and isinstance(None, args[1]):
                     # optional
-                    self._add_argument_to_parser(arg_name, args[0])
+                    self._add_argument_to_parser(arg_name, args[0], help=help, **kw)
 
                 else:
                     raise TypeError("Config parser does not support Union annotations.")
@@ -324,20 +324,21 @@ class FunctionContext:
             # Boolean field
             elif arg_type == bool:
                 # Create a true and a false flag -> the destination is identical
-                if "help" in kw:
-                    kw_true = {**kw, "help": kw["help"] + " (sets the value to True)"}
-                    kw_false = {**kw, "help": kw["help"] + " (sets the value to False)"}
-                else:
-                    kw_true = kw_false = kw
-
-                self.argument_parser.add_argument(f"--{arg_name}", action="store_true", default=MISSING, **kw_true)
+                self.argument_parser.add_argument(
+                    f"--{arg_name}", action="store_true", default=MISSING, help=help + " (set the value to True)", **kw
+                )
 
                 self.argument_parser.add_argument(
-                    f"--not-{arg_name}", dest=arg_name, action="store_false", default=MISSING, **kw_false
+                    f"--not-{arg_name}",
+                    dest=arg_name,
+                    action="store_false",
+                    default=MISSING,
+                    help=help + " (set the value to False)",
+                    **kw,
                 )
 
             elif arg_type in SUPPORTED_PRIMITIVES:
-                self.argument_parser.add_argument(f"--{arg_name}", type=arg_type, default=MISSING, **kw)
+                self.argument_parser.add_argument(f"--{arg_name}", type=arg_type, default=MISSING, help=help, **kw)
 
     def add_arguments_to_parser(self, config_cls: Type[T], prefix: Optional[str] = None):
         """Recursively (if nested) iterate over all fields in the dataclass and add arguments to parser."""

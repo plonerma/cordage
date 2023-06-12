@@ -140,3 +140,20 @@ def test_function_name_saving(global_config, resources_path):
     conf_path = resources_path / "annotation.yaml"
 
     cordage.run(func, args=[str(conf_path)], global_config=global_config)
+
+
+def test_aborted_trial(global_config):
+    def func(config: AlphaConfig):
+        if config.a == 1:
+            raise KeyboardInterrupt()
+
+    context = cordage.FunctionContext(func, global_config=global_config)
+
+    trial = context.parse_args(["--a", "2"])
+    context.execute(trial)
+    assert trial.status == "complete"
+
+    with pytest.raises(KeyboardInterrupt):
+        trial = context.parse_args(["--a", "1"])
+        context.execute(trial)
+    assert trial.status == "aborted"

@@ -50,7 +50,16 @@ def test_func_with_trial(global_config):
         assert config.b == "test"
         assert isinstance(cordage_trial, cordage.Trial)
 
+        assert cordage_trial.experiment_id in repr(cordage_trial)
+
         assert cordage_trial.experiment_id == "experiment"
         assert cordage_trial.output_dir == cordage_trial.global_config.base_output_dir / "experiment"
 
     cordage.run(func, args=["--a", "1", "--b", "test"], global_config=global_config)
+
+
+def test_explicit_config_class(global_config):
+    def func(config):
+        pass
+
+    cordage.run(func, args=["--a", "1", "--b", "test"], global_config=global_config, config_cls=Config)

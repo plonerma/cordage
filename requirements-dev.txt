@@ -4,6 +4,7 @@ pytest
 pytest-mypy
 pytest-isort
 pytest-flake8
+pytest-cov
 flake8<5.0.0
 flake8-black
 types-PyYAML

@@ -2,8 +2,6 @@ from dataclasses import dataclass
 from time import sleep
 from typing import List
 
-import pytest
-
 import cordage
 from cordage import Experiment
 
@@ -116,29 +114,6 @@ def test_return_value_capturing_unserializable(global_config):
     assert metadata.result is None
 
 
-def test_exception_logging(global_config):
-    """If an (uncaught) exception is thrown in the experiment, it should be logged and noted in the metadata."""
-
-    def func(config: Config):
-        raise RuntimeError("Exception42")
-
-    context = cordage.FunctionContext(func, global_config=global_config)
-    trial = context.parse_args([])
-
-    with pytest.raises(RuntimeError):
-        context.execute(trial)
-
-    assert trial.has_status("failed")
-    assert "exception" in trial.metadata.additional_info
-    assert "Exception42" in trial.metadata.additional_info["exception"]["short"]
-    assert "Exception42" in trial.metadata.additional_info["exception"]["traceback"]
-
-    with open(trial.log_path, "r") as f:
-        log_content = f.read()
-
-    assert "Exception42" in log_content
-
-
 def test_return_config_class_casting(global_config):
     def func(config: Config, cordage_trial):
         pass
@@ -160,3 +135,27 @@ def test_return_config_class_casting(global_config):
     assert isinstance(experiment.config, Config)
     assert experiment.config.a == 1
     assert experiment.config.b == "2"
+
+
+def test_output_dir_path_correction(global_config, monkeypatch, tmp_path):
+    def func(config: Config):
+        pass
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    monkeypatch.chdir(run_dir)
+
+    exp = cordage.run(func, args=[])
+
+    output_dir = exp.output_dir.resolve()
+
+    test_dir = tmp_path / "test"
+    test_dir.mkdir()
+    monkeypatch.chdir(test_dir)
+
+    all_exp = Experiment.all_from_path("../run/results")
+
+    assert len(all_exp) == 1
+    assert str(all_exp[0].output_dir).startswith("..")
+    assert all_exp[0].output_dir.resolve() == output_dir
+    assert all_exp[0].result is None

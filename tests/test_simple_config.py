@@ -140,3 +140,15 @@ def test_help(capfd, global_config):
 
     assert "[config_file]" in first_line
     assert "<configuration options to overwrite>" in first_line
+
+
+def test_explicit_description(capfd, global_config):
+    def func(config: Config):
+        assert False, "This should not be executed."
+
+    with pytest.raises(SystemExit):
+        cordage.run(func, args=["--help"], global_config=global_config, description="EXPLICIT_DESCRIPTION")
+
+    out, err = capfd.readouterr()
+
+    assert "EXPLICIT_DESCRIPTION" in out
