@@ -414,8 +414,6 @@ class FunctionContext:
     def execute(self, experiment: Experiment):
         """Execute a given experiment (with the function of this `FunctionContext`)."""
         if isinstance(experiment, Trial):
-            logger.info(f"Running trial (stack size: {len(trial_stack)})")
-
             # execute function with the constructed keyword arguments
             with trial_stack.with_trial_on_stack(experiment):
                 func_kw = self.construct_func_kwargs(experiment)
