@@ -94,8 +94,15 @@ def test_trial_series_loading(global_config, resources_path, capsys):
     # test log stream
     captured = capsys.readouterr()
 
-    for i, captured_line in enumerate(captured.err.strip().split("\n")):
-        assert f"Trial with alpha.b=b{i+1}" in captured_line
+    i = 1
+
+    for captured_line in captured.err.strip().split("\n"):
+        assert f"Trial with alpha.b=b{i-1}" not in captured_line
+
+        if f"Trial with alpha.b=b{i}" in captured_line:
+            i += 1
+
+    assert i == 4
 
     # after loading the series trials, the configs are merely nested dictionaries
     for i, trial in enumerate(trial_store):
@@ -110,12 +117,13 @@ def test_trial_series_loading(global_config, resources_path, capsys):
         with trial.log_path.open("r") as fp:
             log_lines = [line for line in fp]
 
-            assert len(log_lines) == 1, "\n".join(log_lines)
-
             for j in range(3):
                 expected_log_partial = f"Trial with alpha.b=b{j+1}"
 
-                assert (expected_log_partial in log_lines[0]) == (i == j)
+                if i == j:
+                    assert any(expected_log_partial in line for line in log_lines)
+                else:
+                    assert not any(expected_log_partial in line for line in log_lines)
 
 
 @pytest.mark.parametrize("letter", "abc")
@@ -136,7 +144,7 @@ def test_more_trial_series(global_config, resources_path, letter):
         assert trial.config.beta.a == "c" + str(1 + (i // trial_store[0].config.alphas))
         assert trial.config.alpha.a == (1 + (i % trial_store[0].config.alphas))
 
-        assert trial.metadata.additional_info["series_id"] == "experiment"
+        assert trial.metadata.parent_id == "experiment"
 
         if len(trial_store) <= 10:
             assert trial.experiment_id == f"experiment/{i+1}"

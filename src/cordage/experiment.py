@@ -42,6 +42,8 @@ class Metadata:
 
     result: Any = None
 
+    parent_id: Optional[str] = None
+
     additional_info: Dict = field(default_factory=dict)
 
     @property
@@ -88,6 +90,10 @@ class MetadataStore:
             raise RuntimeError(f"{self.__class__.__name__} has not been started yet.")
         else:
             return self.metadata.experiment_id
+
+    @property
+    def parent_id(self):
+        return self.metadata.parent_id
 
     def output_dir_from_id(self, experiment_id: Optional[str]):
         metadata = {**self.metadata.__dict__, "experiment_id": experiment_id}
@@ -389,11 +395,13 @@ class Experiment(Annotatable):
             return
 
         # in this case, a StreamHandler was set up by the series
-        part_of_series = "series_id" in self.metadata.additional_info
+        is_toplevel = self.parent_id is None
 
         handler: logging.Handler
 
-        if self.global_config.logging.to_stream and not part_of_series:
+        logger.info("%s is%s toplevel: parent_id=%s", repr(self), "" if is_toplevel else " not", str(self.parent_id))
+
+        if self.global_config.logging.to_stream and is_toplevel:
             # add colored stream handler
             format_str = "%(name)s:%(filename)s:%(lineno)d - %(message)s"
 
@@ -576,6 +584,7 @@ class Series(Generic[T], Experiment):
             "configuration": {},
             "additional_info": {},
             "status": "pending",
+            "parent_id": None,
             **kw,
         }
 
@@ -638,7 +647,7 @@ class Series(Generic[T], Experiment):
             for i, trial in enumerate(self.trials[skip:], start=skip):
                 trial_subdir = str(i + 1).zfill(ceil(log10(len(self))))
 
-                trial.metadata.additional_info["series_id"] = self.experiment_id
+                trial.metadata.parent_id = self.experiment_id
                 trial.metadata.experiment_id = f"{self.experiment_id}/{trial_subdir}"
 
                 yield trial

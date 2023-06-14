@@ -2,9 +2,10 @@ import argparse
 import dataclasses
 import inspect
 import sys
+from contextlib import contextmanager
 from os import PathLike
 from pathlib import Path
-from typing import Any, Callable, Dict, Literal, Mapping, Optional, Type, TypeVar, Union, get_args, get_origin
+from typing import Any, Callable, Dict, List, Literal, Mapping, Optional, Type, TypeVar, Union, get_args, get_origin
 
 from docstring_parser import parse as parse_docstring
 
@@ -25,6 +26,55 @@ MISSING = MissingType()
 T = TypeVar("T")
 
 SUPPORTED_PRIMITIVES = (int, bool, str, float, Path)
+
+
+class Singleton(type):
+    _instances: Dict[Type, Any] = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class TrialStack(metaclass=Singleton):
+    def __init__(self):
+        self.running: List[Trial] = []
+
+    def push(self, trial: Trial):
+        self.running.append(trial)
+
+    def pop(self) -> Trial:
+        return self.running.pop()
+
+    def peek(self) -> Optional[Trial]:
+        if len(self.running) > 0:
+            return self.running[-1]
+        else:
+            return None
+
+    def peek_id(self) -> Optional[str]:
+        if len(self.running) > 0:
+            return self.running[-1].experiment_id
+        else:
+            return None
+
+    def __len__(self):
+        return len(self.running)
+
+    @contextmanager
+    def with_trial_on_stack(self, trial: Trial):
+        if trial.parent_id is None:
+            trial.metadata.parent_id = self.peek_id()
+        self.push(trial)
+        try:
+            with trial:
+                yield trial
+        finally:
+            self.pop()
+
+
+trial_stack: TrialStack = TrialStack()
 
 
 class FunctionContext:
@@ -345,15 +395,14 @@ class FunctionContext:
 
     def execute(self, experiment: Experiment):
         if isinstance(experiment, Trial):
-            logger.debug("Running trial")
+            logger.info(f"Running trial (stack size: {len(trial_stack)})")
 
             # execute function with the constructed keyword arguments
-            with experiment:
-                logger.debug("Started execution")
-
+            with trial_stack.with_trial_on_stack(experiment):
                 func_kw = self.construct_func_kwargs(experiment)
 
                 experiment.metadata.result = self.func(**func_kw)
+
         elif isinstance(experiment, Series):
             with experiment:
                 for trial in experiment:

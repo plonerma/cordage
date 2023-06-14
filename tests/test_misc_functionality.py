@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from time import sleep
 from typing import List
@@ -176,3 +177,30 @@ def test_output_dir_path_correction(global_config, monkeypatch, tmp_path):
     assert str(all_exp[0].output_dir).startswith("..")
     assert all_exp[0].output_dir.resolve() == output_dir
     assert all_exp[0].result is None
+
+
+def test_nested_trial_logging(global_config, capsys):
+    def foo(config: Config):
+        log = logging.getLogger("test-logger")
+
+        log.warning("in_inner_trial")
+
+    def bar(config: Config, cordage_trial):
+        log = logging.getLogger("test-logger")
+
+        log.warning("before_inner_trial")
+
+        inner_trial = cordage.run(foo, args=[], global_config=global_config)
+
+        log.warning("after_inner_trial")
+
+        assert inner_trial.parent_id == cordage_trial.experiment_id
+
+    cordage.run(bar, args=[], global_config=global_config)
+
+    captured = capsys.readouterr()
+
+    # 42 should appear exactly once in the resulting log output
+    assert captured.err.count("in_inner_trial") == 1
+    assert captured.err.find("before_inner_trial") < captured.err.find("inner_trial")
+    assert captured.err.find("inner_trial") < captured.err.find("after_inner_trial")
