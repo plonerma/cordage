@@ -199,7 +199,7 @@ class Annotatable(MetadataStore):
 
     @property
     def comment(self):
-        return self.annotations.get("comment", "")
+        return self.annotations.get("comment", "") or ""
 
     @comment.setter
     def comment(self, value):
