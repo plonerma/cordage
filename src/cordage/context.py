@@ -38,22 +38,31 @@ class Singleton(type):
 
 
 class TrialStack(metaclass=Singleton):
+    """Represents the stack of currently running experiments (necessary when running nested experiments).
+
+    This class is used internally, to determine whether an experiment was started from within another.
+    """
+
     def __init__(self):
         self.running: List[Trial] = []
 
     def push(self, trial: Trial):
+        """Push a new trial on the stack."""
         self.running.append(trial)
 
     def pop(self) -> Trial:
+        """Pop the currently running trial from the stack."""
         return self.running.pop()
 
     def peek(self) -> Optional[Trial]:
+        """Get the currently active trial from the stack (may be None)."""
         if len(self.running) > 0:
             return self.running[-1]
         else:
             return None
 
     def peek_id(self) -> Optional[str]:
+        """Get the experiment_id of the currently running trial (may be None)."""
         if len(self.running) > 0:
             return self.running[-1].experiment_id
         else:
@@ -64,6 +73,7 @@ class TrialStack(metaclass=Singleton):
 
     @contextmanager
     def with_trial_on_stack(self, trial: Trial):
+        """Put a new trial on the stack and set its parent_id to the trial which was running so far."""
         if trial.parent_id is None:
             trial.metadata.parent_id = self.peek_id()
         self.push(trial)
@@ -281,7 +291,15 @@ class FunctionContext:
 
         return func_kw
 
-    def parse_args(self, args=None) -> Experiment:
+    def parse_args(self, args: Optional[List[str]] = None) -> Experiment:
+        """Parse the command line arguments.
+
+        :param args: A list of arguments (usually from the CLI). If none, sys.argv[1:] is used.
+
+        :return: the resulting experiment (the resulting configuration of the experiment) is the result of the default
+            values, a potentially loaded config file, and parameters passed via the CLI args.
+        """
+
         if args is None:
             # args default to the system args
             args = sys.argv[1:]
@@ -394,6 +412,7 @@ class FunctionContext:
             return series
 
     def execute(self, experiment: Experiment):
+        """Execute a given experiment (with the function of this `FunctionContext`)."""
         if isinstance(experiment, Trial):
             logger.info(f"Running trial (stack size: {len(trial_stack)})")
 
