@@ -5,7 +5,6 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from dataclasses import replace as dataclass_replace
 from datetime import datetime
-from io import StringIO
 from itertools import count, product
 from json.decoder import JSONDecodeError
 from math import ceil, floor, log10
@@ -120,14 +119,22 @@ class MetadataStore:
 
         try:
             # test if the result is serializable
-            stream = StringIO()
-            json.dump(md_dict["result"], stream)
+            json.dumps(md_dict["result"])
         except TypeError:
             # can't serialize return value, replace in with None
             md_dict["result"] = None
 
-        with open(self.metadata_path, "w", encoding="utf-8") as fp:
-            json.dump(md_dict, fp, indent=4)
+        try:
+            with open(self.metadata_path, "w", encoding="utf-8") as fp:
+                json.dump(md_dict, fp, indent=4)
+        except TypeError as exc:
+            # something could still not be serialized
+            for k, v in md_dict.items():
+                try:
+                    # test if the result is serializable
+                    json.dumps(md_dict["result"])
+                except TypeError:
+                    raise TypeError(f"metadata.{k} could not be serialized.") from exc
 
     @classmethod
     def load_metadata(cls, path: PathLike) -> Metadata:
