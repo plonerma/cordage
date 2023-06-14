@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 
@@ -35,3 +36,21 @@ def test_unkown_extensions(tmp_path):
 
     with pytest.raises(RuntimeError):
         from_file(Config, path)
+
+
+def test_value_casting(tmp_path):
+    @dataclass
+    class ComplexConfig:
+        data: dict
+
+    config = ComplexConfig(dict(p=Path("."), i=42, pi=3.14))
+
+    path = tmp_path / "data.json"
+
+    to_file(config, path)
+
+    loaded = from_file(ComplexConfig, path)
+
+    assert loaded.data["p"] == "."
+    assert loaded.data["i"] == 42
+    assert loaded.data["pi"] == 3.14

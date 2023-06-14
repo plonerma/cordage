@@ -121,7 +121,7 @@ class MetadataStore:
         try:
             # test if the result is serializable
             stream = StringIO()
-            json.dump(self.metadata.result, stream)
+            json.dump(md_dict["result"], stream)
         except TypeError:
             # can't serialize return value, replace in with None
             md_dict["result"] = None

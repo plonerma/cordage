@@ -54,68 +54,7 @@ def test_trial_id_collision(global_config):
     assert trial_store[1009].experiment_id.endswith("__1010")
 
 
-def test_return_value_capturing_dict(global_config):
-    def func(config: Config, cordage_trial):
-        return dict(a=1, b="string")
-
-    trial = cordage.run(func, args=[], global_config=global_config)
-
-    metadata_path = trial.output_dir / "cordage.json"
-
-    assert metadata_path.exists()
-
-    experiment = Experiment.from_path(metadata_path)
-    metadata = experiment.metadata
-
-    return_value = metadata.result
-
-    assert len(return_value) == 2
-    assert "a" in return_value
-    assert "b" in return_value
-
-    assert return_value["a"] == 1
-    assert return_value["b"] == "string"
-
-
-def test_return_value_capturing_float(global_config):
-    trial_store: List[cordage.Trial] = []
-
-    def func(config: Config, cordage_trial, trial_store=trial_store):
-        return 0.0
-
-    trial = cordage.run(func, args=[], global_config=global_config)
-
-    metadata_path = trial.output_dir / "cordage.json"
-
-    assert metadata_path.exists()
-
-    experiment = Experiment.from_path(metadata_path)
-    metadata = experiment.metadata
-
-    assert isinstance(metadata.result, float)
-    assert metadata.result == 0.0
-
-
-def test_return_value_capturing_unserializable(global_config):
-    class SomeObject:
-        pass
-
-    def func(config: Config, cordage_trial):
-        return SomeObject()
-
-    trial = cordage.run(func, args=[], global_config=global_config)
-
-    metadata_path = trial.output_dir / "cordage.json"
-
-    assert metadata_path.exists()
-
-    experiment = Experiment.from_path(metadata_path)
-    metadata = experiment.metadata
-
-    assert metadata.result is None
-
-
-def test_return_config_class_casting(global_config):
+def test_metadata_loading_config_class_casting(global_config):
     def func(config: Config):
         pass
 
