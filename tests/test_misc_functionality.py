@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from time import sleep
-from typing import List
+from typing import List, cast
 
 import cordage
 from cordage import Experiment, FunctionContext, Series, Trial
@@ -141,5 +141,36 @@ def test_nested_trial_logging(global_config, capsys):
 
     # 42 should appear exactly once in the resulting log output
     assert captured.err.count("in_inner_trial") == 1
-    assert captured.err.find("before_inner_trial") < captured.err.find("inner_trial")
-    assert captured.err.find("inner_trial") < captured.err.find("after_inner_trial")
+    assert captured.err.find("before_inner_trial") < captured.err.find("in_inner_trial")
+    assert captured.err.find("in_inner_trial") < captured.err.find("after_inner_trial")
+
+
+def test_nested_series_logging(global_config, capsys, resources_path):
+    def foo(config: Config):
+        log = logging.getLogger("test-logger")
+
+        log.warning(f"in_inner_trial_{config.a}")
+
+    def bar(config: Config, cordage_trial):
+        log = logging.getLogger("test-logger")
+
+        log.warning("before_inner_trial")
+
+        inner_series = cordage.run(foo, args=[str(resources_path / "series_simple.yaml")], global_config=global_config)
+
+        log.warning("after_inner_trial")
+
+        assert inner_series.parent_id == cordage_trial.experiment_id
+        for trial in cast(Series, inner_series):
+            assert trial.parent_id == inner_series.experiment_id
+
+    cordage.run(bar, args=[], global_config=global_config)
+
+    captured = capsys.readouterr()
+
+    # 42 should appear exactly once in the resulting log output
+    assert captured.err.count("in_inner_trial") == 3
+    assert captured.err.find("before_inner_trial") < captured.err.find("inner_trial_1")
+    assert captured.err.find("in_inner_trial_1") < captured.err.find("in_inner_trial_2")
+    assert captured.err.find("in_inner_trial_2") < captured.err.find("in_inner_trial_3")
+    assert captured.err.find("in_inner_trial_3") < captured.err.find("after_inner_trial")

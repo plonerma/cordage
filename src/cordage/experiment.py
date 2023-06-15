@@ -657,7 +657,6 @@ class Series(Generic[T], Experiment):
             for i, trial in enumerate(self.trials[skip:], start=skip):
                 trial_subdir = str(i + 1).zfill(ceil(log10(len(self))))
 
-                trial.metadata.parent_id = self.experiment_id
                 trial.metadata.experiment_id = f"{self.experiment_id}/{trial_subdir}"
 
                 yield trial

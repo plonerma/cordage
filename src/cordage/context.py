@@ -37,32 +37,32 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-class TrialStack(metaclass=Singleton):
+class ExperimentStack(metaclass=Singleton):
     """Represents the stack of currently running experiments (necessary when running nested experiments).
 
     This class is used internally, to determine whether an experiment was started from within another.
     """
 
     def __init__(self):
-        self.running: List[Trial] = []
+        self.running: List[Experiment] = []
 
-    def push(self, trial: Trial):
-        """Push a new trial on the stack."""
-        self.running.append(trial)
+    def push(self, experiment: Experiment):
+        """Push a new experiment on the stack."""
+        self.running.append(experiment)
 
-    def pop(self) -> Trial:
-        """Pop the currently running trial from the stack."""
+    def pop(self) -> Experiment:
+        """Pop the currently running experiment from the stack."""
         return self.running.pop()
 
-    def peek(self) -> Optional[Trial]:
-        """Get the currently active trial from the stack (may be None)."""
+    def peek(self) -> Optional[Experiment]:
+        """Get the currently active experiment from the stack (may be None)."""
         if len(self.running) > 0:
             return self.running[-1]
         else:
             return None
 
     def peek_id(self) -> Optional[str]:
-        """Get the experiment_id of the currently running trial (may be None)."""
+        """Get the experiment_id of the currently running experiment (may be None)."""
         if len(self.running) > 0:
             return self.running[-1].experiment_id
         else:
@@ -72,19 +72,23 @@ class TrialStack(metaclass=Singleton):
         return len(self.running)
 
     @contextmanager
-    def with_trial_on_stack(self, trial: Trial):
-        """Put a new trial on the stack and set its parent_id to the trial which was running so far."""
-        if trial.parent_id is None:
-            trial.metadata.parent_id = self.peek_id()
-        self.push(trial)
-        try:
-            with trial:
-                yield trial
-        finally:
-            self.pop()
+    def with_experiment_on_stack(self, experiment: Experiment):
+        """Put a new experiment on the stack and set its parent_id to the experiment which was running so far."""
+        if self.peek() == experiment:
+            yield experiment
+
+        else:
+            experiment.metadata.parent_id = self.peek_id()
+
+            self.push(experiment)
+            try:
+                with experiment:
+                    yield experiment
+            finally:
+                self.pop()
 
 
-trial_stack: TrialStack = TrialStack()
+experiment_stack: ExperimentStack = ExperimentStack()
 
 
 class FunctionContext:
@@ -415,13 +419,13 @@ class FunctionContext:
         """Execute a given experiment (with the function of this `FunctionContext`)."""
         if isinstance(experiment, Trial):
             # execute function with the constructed keyword arguments
-            with trial_stack.with_trial_on_stack(experiment):
+            with experiment_stack.with_experiment_on_stack(experiment):
                 func_kw = self.construct_func_kwargs(experiment)
 
                 experiment.metadata.result = self.func(**func_kw)
 
         elif isinstance(experiment, Series):
-            with experiment:
+            with experiment_stack.with_experiment_on_stack(experiment):
                 for trial in experiment:
                     self.execute(trial)
         else:
