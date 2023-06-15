@@ -126,6 +126,34 @@ def test_trial_series_loading(global_config, resources_path, capsys):
                     assert not any(expected_log_partial in line for line in log_lines)
 
 
+def test_trial_series_loading_with_config_class(global_config, resources_path, capsys):
+    def func(config: Config, cordage_trial: cordage.Trial):
+        cordage_trial.add_tag(config.alpha.b)
+
+        logger.warning("Trial with alpha.b=%s", config.alpha.b)
+
+    config_file = resources_path / "series_list.yml"
+
+    series = cordage.run(func, args=[str(config_file)], global_config=global_config)
+
+    output_dir = series.output_dir
+
+    series = Experiment.from_path(output_dir, config_cls=Config)
+
+    assert isinstance(series, Series)
+
+    trial_store = [trial.synchronize() for trial in series]
+
+    assert len(trial_store) == 3
+
+    assert all(isinstance(trial, Trial) for trial in trial_store)
+
+    # after loading the series trials, the configs are merely nested dictionaries
+    for i, trial in enumerate(trial_store):
+        assert isinstance(trial.config, Config)
+        assert trial.config.alpha.b == f"b{i+1}"
+
+
 @pytest.mark.parametrize("letter", "abc")
 def test_more_trial_series(global_config, resources_path, letter):
     trial_store: List[cordage.Trial] = []
