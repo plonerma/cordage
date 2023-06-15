@@ -406,8 +406,6 @@ class Experiment(Annotatable):
 
         handler: logging.Handler
 
-        logger.info("%s is%s toplevel: parent_id=%s", repr(self), "" if is_toplevel else " not", str(self.parent_id))
-
         if self.global_config.logging.to_stream and is_toplevel:
             # add colored stream handler
             format_str = "%(name)s:%(filename)s:%(lineno)d - %(message)s"
