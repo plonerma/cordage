@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
@@ -81,7 +82,7 @@ def test_float_return_value(global_config):
     assert metadata.result == 0.0
 
 
-def test_unserializable_return_value(global_config):
+def test_unserializable_return_value(global_config, capsys):
     class SomeObject:
         pass
 
@@ -89,6 +90,8 @@ def test_unserializable_return_value(global_config):
         return SomeObject()
 
     trial = cordage.run(func, args=[], global_config=global_config)
+
+    captured = capsys.readouterr()
 
     metadata_path = trial.output_dir / "cordage.json"
 
@@ -98,3 +101,7 @@ def test_unserializable_return_value(global_config):
     metadata = experiment.metadata
 
     assert metadata.result is None
+
+    pattern = r"^.+WARNING.+Cannot serialize .+SomeObject object"
+
+    assert re.search(pattern, captured.err) is not None

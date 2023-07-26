@@ -117,24 +117,13 @@ class MetadataStore:
     def save_metadata(self):
         md_dict = self.metadata.to_dict()
 
-        try:
-            # test if the result is serializable
-            json.dumps(md_dict["result"])
-        except TypeError:
-            # can't serialize return value, replace in with None
-            md_dict["result"] = None
+        with open(self.metadata_path, "w", encoding="utf-8") as fp:
 
-        try:
-            with open(self.metadata_path, "w", encoding="utf-8") as fp:
-                json.dump(md_dict, fp, indent=4)
-        except TypeError as exc:
-            # something could still not be serialized
-            for k, v in md_dict.items():
-                try:
-                    # test if the result is serializable
-                    json.dumps(md_dict["result"])
-                except TypeError:
-                    raise TypeError(f"metadata.{k} could not be serialized.") from exc
+            def invalid_obj_default(obj):
+                logger.warning("Cannot serialize %s", str(obj))
+                return None
+
+            json.dump(md_dict, fp, indent=4, default=invalid_obj_default)
 
     @classmethod
     def load_metadata(cls, path: PathLike) -> Metadata:
