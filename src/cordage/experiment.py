@@ -13,6 +13,8 @@ from pathlib import Path
 from traceback import format_exception
 from typing import Any, Dict, Generator, Generic, Iterable, List, Mapping, Optional, Set, Type, TypeVar, Union, cast
 
+from dacite import DaciteError
+
 try:
     import colorlog
 except ImportError:
@@ -384,7 +386,7 @@ class Experiment(Annotatable):
 
             try:
                 experiments.append(cls.from_path(p.parent))
-            except JSONDecodeError as exc:
+            except (JSONDecodeError, DaciteError) as exc:
                 logger.warning("Couldn't load '%s': %s", str(path), str(exc))
 
         return list(sorted(experiments, key=lambda exp: exp.output_dir))
