@@ -365,10 +365,7 @@ class Experiment(Annotatable):
         return experiment
 
     @classmethod
-    def all_from_path(
-        cls,
-        results_path: Union[str, PathLike],
-    ) -> List["Experiment"]:
+    def all_from_path(cls, results_path: Union[str, PathLike], skip_hidden: bool = True) -> List["Experiment"]:
         """Load all experiments from the results_path."""
         results_path = Path(results_path)
 
@@ -376,6 +373,9 @@ class Experiment(Annotatable):
         experiments = []
 
         for p in results_path.rglob("*/cordage.json"):
+            if skip_hidden and any(part.startswith(".") for part in (p.relative_to(results_path)).parts):
+                continue
+
             path = p.parent
 
             if path.parent in seen_dirs:
