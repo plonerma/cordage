@@ -172,14 +172,13 @@ def test_more_trial_series(global_config, resources_path, letter):
         assert trial.config.beta.a == "c" + str(1 + (i // trial_store[0].config.alphas))
         assert trial.config.alpha.a == (1 + (i % trial_store[0].config.alphas))
 
-        assert trial.metadata.parent_id == "experiment"
+        assert trial.metadata.parent_dir is not None
+        assert trial.metadata.parent_dir.parts[-1] == "experiment"
 
         if len(trial_store) <= 10:
-            assert trial.experiment_id == f"experiment/{i+1}"
             assert trial.output_dir == global_config.base_output_dir / "experiment" / f"{i+1}"
 
         else:
-            assert trial.experiment_id == f"experiment/{i+1:02}"
             assert trial.output_dir == global_config.base_output_dir / "experiment" / f"{i+1:02}"
 
 

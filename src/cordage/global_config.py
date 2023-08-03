@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from os import PathLike
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Dict, Union
 
 from .util import from_dict as config_from_dict
 from .util import from_file as config_from_file
@@ -35,8 +35,9 @@ class GlobalConfig:
 
     base_output_dir: Path = Path("results")
 
-    experiment_id_format: str = "{start_time:%Y-%m-%d_%H-%M-%S}"
-    output_dir_format: str = "{start_time:%Y-%m}/{experiment_id}"
+    output_dir_format: str = "{start_time:%Y-%m}/{start_time:%Y-%m-%d_%H-%M-%S}{collision_suffix}"
+
+    overwrite_existing: bool = False
 
     _series_spec_key = "__series__"
     _series_skip_key = "__series-skip__"
@@ -55,11 +56,11 @@ class GlobalConfig:
 
     def validate_format_strings(self):
         # check the format strings
-        dummy_metadata: Dict[str, Any] = dict(start_time=datetime.now())
-        self.experiment_id_format.format(**dummy_metadata)
-
-        dummy_metadata["experiment_id"] = "experiment_id"
-        self.output_dir_format.format(**dummy_metadata)
+        self.output_dir_format.format(
+            function="some_function",
+            collision_suffix="_2",
+            start_time=datetime.now(),
+        )
 
     @classmethod
     def resolve(cls, global_config: Union[str, PathLike, Dict, "GlobalConfig", None]):

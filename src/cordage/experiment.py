@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import shutil
 from copy import deepcopy
 from dataclasses import dataclass, field
 from dataclasses import replace as dataclass_replace
@@ -33,7 +34,6 @@ class Metadata:
     global_config: GlobalConfig
 
     output_dir: Optional[Path] = None
-    experiment_id: Optional[str] = None
     status: str = "pending"
 
     start_time: Optional[datetime] = None
@@ -43,7 +43,7 @@ class Metadata:
 
     result: Any = None
 
-    parent_id: Optional[str] = None
+    parent_dir: Optional[Path] = None
 
     additional_info: Dict = field(default_factory=dict)
 
@@ -86,22 +86,6 @@ class MetadataStore:
             self.metadata = Metadata(global_config=global_config, **kw)
 
     @property
-    def experiment_id(self):
-        if self.metadata.experiment_id is None:
-            raise RuntimeError(f"{self.__class__.__name__} has not been started yet.")
-        else:
-            return self.metadata.experiment_id
-
-    @property
-    def parent_id(self):
-        return self.metadata.parent_id
-
-    def output_dir_from_id(self, experiment_id: Optional[str]):
-        metadata = {**self.metadata.__dict__, "experiment_id": experiment_id}
-
-        return self.global_config.base_output_dir / self.global_config.output_dir_format.format(**metadata)
-
-    @property
     def global_config(self) -> GlobalConfig:
         return self.metadata.global_config
 
@@ -112,18 +96,20 @@ class MetadataStore:
         else:
             return self.metadata.output_dir
 
+    @property
+    def parent_dir(self) -> Optional[Path]:
+        return self.metadata.parent_dir
+
     def create_output_dir(self):
         if self.metadata.output_dir is not None:
-            assert self.output_dir.exists(), f"Output directory given ({self.output_dir}), but it does not exist."
+            self.output_dir.mkdir(parents=True, exist_ok=True)
             return self.output_dir
 
-        tried_suffixes = set()
+        tried_paths: Set[Path] = set()
         suffix = ""
 
         for i in count(1):
-            if i == 1:
-                suffix = ""
-            else:
+            if i > 1:
                 level = floor(log10(i) / 2) + 1
                 suffix = "_" * level + str(i).zfill(2 * level)
 
@@ -132,20 +118,23 @@ class MetadataStore:
                 collision_suffix=suffix,
             )
 
-            if suffix in tried_suffixes:
-                raise RuntimeError(f"Path {path} does already exist - collision could not be circumvented.")
+            if path in tried_paths:
+                # suffix was already tried: assume that further tries wont resolve this collision
+                raise RuntimeError(f"Path {path} does already exist - collision could not be avoided.")
 
             try:
                 path.mkdir(parents=True, exist_ok=False)
+                self.metadata.output_dir = path
                 return path
-            except FileExistsError as e:
+            except FileExistsError:
                 if self.global_config.overwrite_existing:
                     logger.warning("Path %s does existing. Replacing directory with new one.", str(path))
                     shutil.rmtree(path)
-                    path.mkdir(parents=True, exist_ok=True)
+                    path.mkdir(parents=True)
+                    self.metadata.output_dir = path
                     return path
                 else:
-                    tried_suffixes.add(suffix)
+                    tried_paths.add(path)
 
     @property
     def metadata_path(self):
@@ -177,24 +166,6 @@ class MetadataStore:
                 f"({metadata.output_dir} -> {path.parent})"
             )
             metadata.output_dir = path.parent
-
-            # adjust global_config.base_output_dir
-            rel_theoretical_output_dir = Path(metadata.global_config.output_dir_format.format(**metadata.__dict__))
-
-            suffix_matches = all(
-                a == b for a, b in zip(metadata.output_dir.parts[::-1], rel_theoretical_output_dir.parts[::-1])
-            )
-
-            if not suffix_matches:
-                logger.warning(
-                    "Could not reconstruct base output directory (expected suffix: '%s', actual path: '%s'.",
-                    str(rel_theoretical_output_dir),
-                    str(metadata.output_dir),
-                )
-            else:
-                # compute number of levels to go up
-                levels = len(rel_theoretical_output_dir.parts) - 1
-                metadata.global_config.base_output_dir = metadata.output_dir.parents[levels]
 
         return metadata
 
@@ -259,8 +230,8 @@ class Experiment(Annotatable):
         self.log_handlers: List[logging.Handler] = []
 
     def __repr__(self):
-        if self.metadata.experiment_id is not None:
-            return f"{self.__class__.__name__} (id: {self.experiment_id}, status: {self.status})"
+        if self.metadata.output_dir is not None:
+            return f"{self.__class__.__name__} ({self.output_dir}, status: {self.status})"
         else:
             return f"{self.__class__.__name__} (status: {self.status})"
 
@@ -312,31 +283,27 @@ class Experiment(Annotatable):
 
     def __enter__(self):
         self.start()
-        logger.info("%s '%s' started.", self.__class__.__name__, self.experiment_id)
+        logger.info("%s '%s' started.", self.__class__.__name__, str(self.output_dir))
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is None:
-            logger.info("%s '%s' completed.", self.__class__.__name__, self.experiment_id)
+            logger.info("%s '%s' completed.", self.__class__.__name__, str(self.output_dir))
             self.end(status="complete")
         elif issubclass(exc_type, KeyboardInterrupt):
-            logger.warning("%s '%s' aborted.", self.__class__.__name__, self.experiment_id)
+            logger.warning("%s '%s' aborted.", self.__class__.__name__, str(self.output_dir))
             self.end(status="aborted")
             return False
         else:
             self.handle_exception(exc_type, exc_value, traceback)
-            logger.warning("%s '%s' failed.", self.__class__.__name__, self.experiment_id)
+            logger.warning("%s '%s' failed.", self.__class__.__name__, str(self.output_dir))
             self.end(status="failed")
             return False
 
     def synchronize(self):
         """Synchronize to existing output directory."""
-
-        if self.metadata.output_dir is None:
-            assert (
-                self.metadata.experiment_id is not None
-            ), f"Cannot synchronize a {self.__class__.__name__} which has no `experiment_id` or `output_dir`."
-
-            self.metadata.output_dir = self.output_dir_from_id(self.experiment_id)
+        assert (
+            self.metadata.output_dir is not None
+        ), f"Cannot synchronize a {self.__class__.__name__} which has no `output_dir`."
 
         if self.metadata.output_dir.exists():
             metadata = self.load_metadata(self.metadata.output_dir)
@@ -407,7 +374,7 @@ class Experiment(Annotatable):
             return
 
         # in this case, a StreamHandler was set up by the series
-        is_toplevel = self.parent_id is None
+        is_toplevel = self.metadata.parent_dir is None
 
         handler: logging.Handler
 
@@ -589,12 +556,11 @@ class Series(Generic[T], Experiment):
         additional_info = kw.pop("additional_info", None)
 
         fields_to_update: Dict[str, Any] = {
-            "experiment_id": None,
             "output_dir": None,
             "configuration": {},
             "additional_info": {},
             "status": "pending",
-            "parent_id": None,
+            "parent_dir": None,
             **kw,
         }
 
@@ -657,7 +623,7 @@ class Series(Generic[T], Experiment):
             for i, trial in enumerate(self.trials[skip:], start=skip):
                 trial_subdir = str(i + 1).zfill(ceil(log10(len(self))))
 
-                trial.metadata.experiment_id = f"{self.experiment_id}/{trial_subdir}"
+                trial.metadata.output_dir = self.output_dir / trial_subdir
 
                 yield trial
         else:

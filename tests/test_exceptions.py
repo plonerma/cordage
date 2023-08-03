@@ -14,13 +14,16 @@ class Config:
 def test_exception_logging(global_config):
     """If an (uncaught) exception is thrown in the experiment, it should be logged and noted in the metadata."""
 
+    class SomeSpecificError(RuntimeError):
+        pass
+
     def func(config: Config):
-        raise RuntimeError("Exception42")
+        raise SomeSpecificError("Exception42")
 
     context = cordage.FunctionContext(func, global_config=global_config)
     trial = context.parse_args([])
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(SomeSpecificError):
         context.execute(trial)
 
     assert trial.has_status("failed")
@@ -76,8 +79,5 @@ def test_multiple_runtime_exceptions(global_config):
 
     with pytest.raises(RuntimeError):
         print(exp.output_dir)
-
-    with pytest.raises(RuntimeError):
-        print(exp.experiment_id)
 
     assert "status: pending" in repr(exp)

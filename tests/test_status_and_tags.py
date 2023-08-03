@@ -38,7 +38,7 @@ class Config:
 
 
 def test_trial_series_list(global_config, resources_path):
-    global_config.output_dir_format = "nested/structure/{experiment_id}"
+    global_config.output_dir_format = "nested/structure/experiment{collision_suffix}"
 
     series_path = global_config.base_output_dir / "nested" / "structure" / "experiment"
 

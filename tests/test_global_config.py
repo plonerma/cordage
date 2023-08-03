@@ -18,16 +18,9 @@ def test_format_string_validation(global_config):
     _ = GlobalConfig()
 
     with pytest.raises(KeyError):
-        _ = dataclasses.replace(global_config, experiment_id_format="{non_existing_field}")
-
-    with pytest.raises(KeyError):
-        _ = dataclasses.replace(global_config, experiment_id_format="{experiment_id}")
-
-    # Output dir should contain the experiment id
-    _ = dataclasses.replace(global_config, output_dir_format="{experiment_id}")
-
-    with pytest.raises(KeyError):
         _ = dataclasses.replace(global_config, output_dir_format="{non_existing_field}")
 
+    _ = dataclasses.replace(global_config, output_dir_format="{collision_suffix}")
+
     with pytest.raises(ValueError):
-        _ = dataclasses.replace(global_config, output_dir_format="{experiment_id:%Y}")
+        _ = dataclasses.replace(global_config, output_dir_format="{function:%Y}")

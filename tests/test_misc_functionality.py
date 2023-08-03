@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from time import sleep
 from typing import List, cast
 
+import pytest
+
 import cordage
 from cordage import Experiment, FunctionContext, Series, Trial
 
@@ -13,6 +15,7 @@ class Config:
     b: str = "test"
 
 
+@pytest.mark.timeout(2)
 def test_timing(global_config):
     def func(config: Config, cordage_trial: cordage.Trial):
         sleep(1)
@@ -36,10 +39,8 @@ def test_timing(global_config):
     assert metadata.status == "complete"
 
 
+@pytest.mark.timeout(10)
 def test_trial_id_collision(global_config):
-    global_config.trial_id_format = "experiment"
-    global_config.output_dir_format = "{experiment_id}"
-
     trial_store: List[cordage.Trial] = []
 
     def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):
@@ -48,12 +49,13 @@ def test_trial_id_collision(global_config):
     for _ in range(1010):
         cordage.run(func, args=[], global_config=global_config)
 
-    assert trial_store[7].experiment_id.endswith("_08")
-    assert trial_store[42].experiment_id.endswith("_43")
-    assert trial_store[123].experiment_id.endswith("__0124")
-    assert trial_store[1009].experiment_id.endswith("__1010")
+    assert str(trial_store[7].output_dir).endswith("_08")
+    assert str(trial_store[42].output_dir).endswith("_43")
+    assert str(trial_store[123].output_dir).endswith("__0124")
+    assert str(trial_store[1009].output_dir).endswith("__1010")
 
 
+@pytest.mark.timeout(1)
 def test_metadata_loading_config_class_casting(global_config):
     def func(config: Config):
         pass
@@ -77,6 +79,7 @@ def test_metadata_loading_config_class_casting(global_config):
     assert experiment.config.b == "2"
 
 
+@pytest.mark.timeout(1)
 def test_function_context_from_configuration(global_config):
     def func(config: Config):
         pass
@@ -94,6 +97,7 @@ def test_function_context_from_configuration(global_config):
     assert len(series) == 3
 
 
+@pytest.mark.timeout(1)
 def test_output_dir_path_correction(global_config, monkeypatch, tmp_path):
     def func(config: Config):
         pass
@@ -118,6 +122,7 @@ def test_output_dir_path_correction(global_config, monkeypatch, tmp_path):
     assert all_exp[0].result is None
 
 
+@pytest.mark.timeout(1)
 def test_nested_trial_logging(global_config, capsys):
     def foo(config: Config):
         log = logging.getLogger("test-logger")
@@ -133,7 +138,7 @@ def test_nested_trial_logging(global_config, capsys):
 
         log.warning("after_inner_trial")
 
-        assert inner_trial.parent_id == cordage_trial.experiment_id
+        assert inner_trial.parent_dir == cordage_trial.output_dir
 
     cordage.run(bar, args=[], global_config=global_config)
 
@@ -145,6 +150,7 @@ def test_nested_trial_logging(global_config, capsys):
     assert captured.err.find("in_inner_trial") < captured.err.find("after_inner_trial")
 
 
+@pytest.mark.timeout(1)
 def test_nested_series_logging(global_config, capsys, resources_path):
     def foo(config: Config):
         log = logging.getLogger("test-logger")
@@ -160,9 +166,9 @@ def test_nested_series_logging(global_config, capsys, resources_path):
 
         log.warning("after_inner_trial")
 
-        assert inner_series.parent_id == cordage_trial.experiment_id
+        assert inner_series.parent_dir == cordage_trial.output_dir
         for trial in cast(Series, inner_series):
-            assert trial.parent_id == inner_series.experiment_id
+            assert trial.parent_dir == inner_series.output_dir
 
     cordage.run(bar, args=[], global_config=global_config)
 

@@ -61,10 +61,10 @@ class ExperimentStack(metaclass=Singleton):
         else:
             return None
 
-    def peek_id(self) -> Optional[str]:
-        """Get the experiment_id of the currently running experiment (may be None)."""
+    def peek_dir(self) -> Optional[Path]:
+        """Get the output_dir of the currently running experiment (may be None)."""
         if len(self.running) > 0:
-            return self.running[-1].experiment_id
+            return self.running[-1].output_dir
         else:
             return None
 
@@ -73,12 +73,12 @@ class ExperimentStack(metaclass=Singleton):
 
     @contextmanager
     def with_experiment_on_stack(self, experiment: Experiment):
-        """Put a new experiment on the stack and set its parent_id to the experiment which was running so far."""
+        """Put a new experiment on the stack and set its parent_dir to the experiment which was running so far."""
         if self.peek() == experiment:
             yield experiment
 
         else:
-            experiment.metadata.parent_id = self.peek_id()
+            experiment.metadata.parent_dir = self.peek_dir()
 
             self.push(experiment)
             try:

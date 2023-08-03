@@ -11,8 +11,7 @@ def global_config(tmp_path: Path) -> GlobalConfig:
     return config_from_dict(
         GlobalConfig,
         {
-            "experiment_id_format": "experiment",
-            "output_dir_format": "{experiment_id}",
+            "output_dir_format": "experiment{collision_suffix}",
             "base_output_dir": tmp_path / "results",
         },
     )
