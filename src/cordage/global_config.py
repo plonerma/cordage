@@ -17,12 +17,6 @@ class ParameterNameConfig:
 
 
 @dataclass
-class FileTreeConfig:
-    max_level: int = 3
-    max_files: int = 1000
-
-
-@dataclass
 class LoggingConfig:
     use: bool = True
     to_stream: bool = True
@@ -47,8 +41,6 @@ class GlobalConfig:
 
     param_names: ParameterNameConfig = field(default_factory=ParameterNameConfig)
 
-    file_tree: FileTreeConfig = field(default_factory=FileTreeConfig)
-
     logging: LoggingConfig = field(default_factory=LoggingConfig)
 
     def __post_init__(self):
@@ -70,13 +62,13 @@ GLOBAL_CONFIG_PATH: Path = Path("~/.config/cordage.json")
 
 
 def get_global_config(global_config: Union[str, PathLike, Dict, GlobalConfig, None]):
+    # Dictionary: create configuration based on these values
     if isinstance(global_config, dict):
-        # Dictionary given: create configuration based on these values
         logger.debug("Creating global from dictionary.")
         return config_from_dict(GlobalConfig, global_config)
 
+    # Path: load configuration file from this path
     elif isinstance(global_config, (str, Path)):
-        # Path given: load configuration file from this path
         global_config = Path(global_config)
         if not global_config.exists():
             raise FileNotFoundError(f"Given cordage configuration path ({global_config}) does not exist.")
@@ -84,9 +76,11 @@ def get_global_config(global_config: Union[str, PathLike, Dict, GlobalConfig, No
         logger.debug("Loading global config from file (%s).", global_config)
         return config_from_file(GlobalConfig, global_config)
 
+    # GlobalConfig object
     elif isinstance(global_config, GlobalConfig):
         return global_config
 
+    # None: look for files
     elif global_config is None:
         # Go through config file order
 
@@ -102,7 +96,7 @@ def get_global_config(global_config: Union[str, PathLike, Dict, GlobalConfig, No
 
         # 3. Use the default values
         else:
-            logger.warning(
+            logger.info(
                 "No cordage configuration given. Using default values. Use a project specific (%s) or global"
                 "configuration (%s) to change the behavior.",
                 PROJECT_SPECIFIC_CONFIG_PATH,
