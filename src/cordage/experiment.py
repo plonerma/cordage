@@ -8,7 +8,7 @@ from datetime import datetime
 from itertools import count, product
 from json.decoder import JSONDecodeError
 from math import ceil, floor, log10
-from os import PathLike
+from os import PathLike, getpid
 from pathlib import Path
 from traceback import format_exception
 from typing import Any, Dict, Generator, Generic, Iterable, List, Mapping, Optional, Set, Type, TypeVar, Union, cast
@@ -252,6 +252,7 @@ class Experiment(Annotatable):
         assert self.status == "pending", f"{self.__class__.__name__} has already been started."
         self.metadata.start_time = datetime.now()
         self.metadata.status = "running"
+        self.metadata.additional_info["process_id"] = getpid()
         self.create_output_dir()
         self.save_metadata()
         self.save_annotations()
