@@ -11,6 +11,8 @@ from .util import logger
 
 @dataclass
 class ParameterNameConfig:
+    """Determines the names of the parameters in the function to be called by cordage."""
+
     config: str = "config"
     output_dir: str = "output_dir"
     trial_object: str = "cordage_trial"
@@ -27,6 +29,9 @@ class LoggingConfig:
 @dataclass
 class GlobalConfig:
     """Holds the configuration for cordage."""
+
+    PROJECT_SPECIFIC_CONFIG_PATH = Path("./cordage_configuration.json")
+    GLOBAL_CONFIG_PATH: Path = Path("~/.config/cordage.json")
 
     base_output_dir: Path = Path("results")
 
@@ -56,52 +61,48 @@ class GlobalConfig:
         dummy_metadata["experiment_id"] = "experiment_id"
         self.output_dir_format.format(**dummy_metadata)
 
+    @classmethod
+    def resolve(cls, global_config: Union[str, PathLike, Dict, "GlobalConfig", None]):
+        # Dictionary: create configuration based on these values
+        if isinstance(global_config, dict):
+            logger.debug("Creating global from dictionary.")
+            return config_from_dict(cls, global_config)
 
-PROJECT_SPECIFIC_CONFIG_PATH = Path("./cordage_configuration.json")
-GLOBAL_CONFIG_PATH: Path = Path("~/.config/cordage.json")
+        # Path: load configuration file from this path
+        elif isinstance(global_config, (str, Path)):
+            global_config = Path(global_config)
+            if not global_config.exists():
+                raise FileNotFoundError(f"Given cordage configuration path ({global_config}) does not exist.")
 
+            logger.debug("Loading global config from file (%s).", global_config)
+            return config_from_file(cls, global_config)
 
-def get_global_config(global_config: Union[str, PathLike, Dict, GlobalConfig, None]):
-    # Dictionary: create configuration based on these values
-    if isinstance(global_config, dict):
-        logger.debug("Creating global from dictionary.")
-        return config_from_dict(GlobalConfig, global_config)
+        # GlobalConfig object
+        elif isinstance(global_config, cls):
+            return global_config
 
-    # Path: load configuration file from this path
-    elif isinstance(global_config, (str, Path)):
-        global_config = Path(global_config)
-        if not global_config.exists():
-            raise FileNotFoundError(f"Given cordage configuration path ({global_config}) does not exist.")
+        # None: look for files
+        elif global_config is None:
+            # Go through config file order
 
-        logger.debug("Loading global config from file (%s).", global_config)
-        return config_from_file(GlobalConfig, global_config)
+            # 1. Check if a project specific configuration file exists
+            if cls.PROJECT_SPECIFIC_CONFIG_PATH.exists():
+                logger.debug("Loading project specific global config (%s).", cls.PROJECT_SPECIFIC_CONFIG_PATH)
+                return config_from_file(cls, cls.PROJECT_SPECIFIC_CONFIG_PATH)
 
-    # GlobalConfig object
-    elif isinstance(global_config, GlobalConfig):
-        return global_config
+            # 2. Check if a global configuration file exists
+            elif cls.GLOBAL_CONFIG_PATH.exists():
+                logger.debug("Loading global config (%s).", cls.GLOBAL_CONFIG_PATH)
+                return config_from_file(cls, cls.GLOBAL_CONFIG_PATH)
 
-    # None: look for files
-    elif global_config is None:
-        # Go through config file order
-
-        # 1. Check if a project specific configuration file exists
-        if PROJECT_SPECIFIC_CONFIG_PATH.exists():
-            logger.debug("Loading project specific global config (%s).", PROJECT_SPECIFIC_CONFIG_PATH)
-            return config_from_file(GlobalConfig, PROJECT_SPECIFIC_CONFIG_PATH)
-
-        # 2. Check if a global configuration file exists
-        elif GLOBAL_CONFIG_PATH.exists():
-            logger.debug("Loading global config (%s).", GLOBAL_CONFIG_PATH)
-            return config_from_file(GlobalConfig, GLOBAL_CONFIG_PATH)
-
-        # 3. Use the default values
+            # 3. Use the default values
+            else:
+                logger.info(
+                    "No cordage configuration given. Using default values. Use a project specific (%s) or global"
+                    "configuration (%s) to change the behavior.",
+                    cls.PROJECT_SPECIFIC_CONFIG_PATH,
+                    cls.GLOBAL_CONFIG_PATH,
+                )
+            return cls()
         else:
-            logger.info(
-                "No cordage configuration given. Using default values. Use a project specific (%s) or global"
-                "configuration (%s) to change the behavior.",
-                PROJECT_SPECIFIC_CONFIG_PATH,
-                GLOBAL_CONFIG_PATH,
-            )
-            return GlobalConfig()
-    else:
-        raise TypeError("`global_config` must be one of str, PathLike, dict, cordage.GlobalConfig, None")
+            raise TypeError("`global_config` must be one of str, PathLike, dict, cordage.GlobalConfig, None")

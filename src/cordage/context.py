@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Literal, Mapping, Optional, Type, 
 from docstring_parser import parse as parse_docstring
 
 from .experiment import Experiment, Series, Trial
-from .global_config import GlobalConfig, get_global_config
+from .global_config import GlobalConfig
 from .util import from_dict as config_from_dict
 from .util import logger, nest_items, nested_update, read_dict_from_file
 
@@ -111,7 +111,7 @@ class FunctionContext:
         config_cls: Optional[Type] = None,
         global_config: Union[str, PathLike, Dict, GlobalConfig, None] = None,
     ):
-        self.global_config = get_global_config(global_config)
+        self.global_config = GlobalConfig.resolve(global_config)
         self.set_function(func)
         self.set_config_cls(config_cls)
         self.set_description(description)
