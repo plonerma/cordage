@@ -112,6 +112,41 @@ class MetadataStore:
         else:
             return self.metadata.output_dir
 
+    def create_output_dir(self):
+        if self.metadata.output_dir is not None:
+            assert self.output_dir.exists(), f"Output directory given ({self.output_dir}), but it does not exist."
+            return self.output_dir
+
+        tried_suffixes = set()
+        suffix = ""
+
+        for i in count(1):
+            if i == 1:
+                suffix = ""
+            else:
+                level = floor(log10(i) / 2) + 1
+                suffix = "_" * level + str(i).zfill(2 * level)
+
+            path = self.global_config.base_output_dir / self.global_config.output_dir_format.format(
+                **self.metadata.__dict__,
+                collision_suffix=suffix,
+            )
+
+            if suffix in tried_suffixes:
+                raise RuntimeError(f"Path {path} does already exist - collision could not be circumvented.")
+
+            try:
+                path.mkdir(parents=True, exist_ok=False)
+                return path
+            except FileExistsError as e:
+                if self.global_config.overwrite_existing:
+                    logger.warning("Path %s does existing. Replacing directory with new one.", str(path))
+                    shutil.rmtree(path)
+                    path.mkdir(parents=True, exist_ok=True)
+                    return path
+                else:
+                    tried_suffixes.add(suffix)
+
     @property
     def metadata_path(self):
         return self.output_dir / "cordage.json"
@@ -268,33 +303,6 @@ class Experiment(Annotatable):
         self.save_metadata()
         self.save_annotations()
         self.teardown_log()
-
-    def create_unique_id(self):
-        ideal_id = self.global_config.experiment_id_format.format(**self.metadata.__dict__)
-
-        if not self.output_dir_from_id(ideal_id).exists():
-            return ideal_id
-
-        # enumerate experiments starting at 1 (as a first one already exists)
-        for i in count(2):
-            level = floor(log10(i) / 2) + 1
-            real_id = ideal_id + "_" * level + str(i).zfill(2 * level)
-
-            if not self.output_dir_from_id(real_id).exists():
-                return real_id
-
-    def create_output_dir(self):
-        if self.metadata.output_dir is not None:
-            assert self.output_dir.exists(), f"Output directory given ({self.output_dir}), but it does not exist."
-            return self.output_dir
-
-        if self.metadata.experiment_id is None:
-            self.metadata.experiment_id = self.create_unique_id()
-
-        self.metadata.output_dir = self.output_dir_from_id(self.experiment_id)
-        self.output_dir.mkdir(parents=True)
-
-        return self.output_dir
 
     def handle_exception(self, exc_type, exc_value, traceback):
         traceback_string = "".join(format_exception(exc_type, value=exc_value, tb=traceback))
