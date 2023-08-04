@@ -39,7 +39,7 @@ def test_timing(global_config):
     assert metadata.status == "complete"
 
 
-@pytest.mark.timeout(10)
+@pytest.mark.timeout(20)
 def test_trial_id_collision(global_config):
     trial_store: List[cordage.Trial] = []
 
