@@ -183,11 +183,19 @@ class FunctionContext:
         )
 
         self.argument_parser.add_argument(
-            "--series-comment",
-            action="store_true",
+            "--experiment-comment",
+            type=str,
             help="Add a comment to the annotation of this series.",
             default=MISSING,
-            dest=self.global_config._series_comment_key,
+            dest=self.global_config._experiment_comment_key,
+        )
+
+        self.argument_parser.add_argument(
+            "--output-dir",
+            type=Path,
+            help="Path to use as the output directory.",
+            default=MISSING,
+            dest=self.global_config._output_dir_key,
         )
 
     def _add_argument_to_parser(self, arg_name: str, arg_type: Any, help: str, **kw):
@@ -314,8 +322,8 @@ class FunctionContext:
         argument_data: dict = vars(self.argument_parser.parse_args(args))
         argument_data = self.remove_missing_values(argument_data)
 
-        # series comment might be given via the command line ("--series-skip")
-        series_comment_flag = argument_data.pop(self.global_config._series_comment_key, False)
+        cli_series_comment = argument_data.pop(self.global_config._experiment_comment_key, None)
+        output_dir = argument_data.pop(self.global_config._output_dir_key, None)
 
         config_path = argument_data.pop(".", None)
 
@@ -332,9 +340,9 @@ class FunctionContext:
 
             argument_data = new_conf_data
 
-            # another series comment might be given via the config file ("__series-skip__")
+            # another series comment might be given via the config file
             # in this case, the comments are added to another
-            conf_file_comment = argument_data.pop(self.global_config._series_comment_key, None)
+            conf_file_comment = argument_data.pop(self.global_config._experiment_comment_key, None)
         else:
             series_spec = None
             conf_file_comment = None
@@ -347,28 +355,17 @@ class FunctionContext:
         series: Series = Series(
             function=self.func_name,
             base_config=base_config,
+            output_dir=output_dir,
             global_config=self.global_config,
             series_spec=series_spec,
             series_skip=series_skip,
             additional_info={"description": self.description, "parsed_arguments": args},
         )
 
-        if series_comment_flag is True:
-            if conf_file_comment is not None:
-                # add the stdin commnent after the config file comment
-                comment = conf_file_comment + "\n\n"
-            else:
-                # there is not comment in the config file, but user passes one via stdin
-                comment = ""
-
-            # get comment from stdin
-            for line in sys.stdin:
-                comment += line
-            series.comment = comment
-
-        elif conf_file_comment is not None:
-            # only use the comment from the config file
-            series.comment = conf_file_comment
+        if cli_series_comment is not None and conf_file_comment is not None:
+            series.comment = conf_file_comment + "\n\n" + cli_series_comment
+        else:
+            series.comment = conf_file_comment or cli_series_comment or ""
 
         logger.debug("%d experiments found in configuration", len(series))
 

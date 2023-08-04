@@ -578,6 +578,10 @@ class Series(Generic[T], Experiment):
             logger.debug("Configuration yields a single experiment.")
             single_trial = self.make_trial(configuration=self.base_config)
             single_trial.annotations = self.annotations
+
+            if self.metadata.output_dir:
+                single_trial.metadata.output_dir = self.metadata.output_dir
+
             self.trials = [single_trial]
 
         else:

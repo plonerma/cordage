@@ -41,7 +41,8 @@ class GlobalConfig:
 
     _series_spec_key = "__series__"
     _series_skip_key = "__series-skip__"
-    _series_comment_key = "__series-comment__"
+    _experiment_comment_key = "__experiment-comment__"
+    _output_dir_key = "__output-dir__"
 
     strict_mode: bool = True
 

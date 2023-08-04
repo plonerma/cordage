@@ -1,4 +1,3 @@
-import io
 from dataclasses import dataclass, field
 
 import pytest
@@ -86,32 +85,32 @@ def test_trial_series_list(global_config, resources_path):
 
 
 def test_annotation_comment(global_config, monkeypatch):
-    TEST_COMMENT = "Some string\nwith newline"
+    TEST_COMMENT = "Some string"
 
     def func(config: Config, cordage_trial):
         print(cordage_trial.annotations)
 
-    monkeypatch.setattr("sys.stdin", io.StringIO(TEST_COMMENT))
-
-    cordage.run(func, args=["--series-comment", "--alpha.a", "1"], global_config=global_config)
+    cordage.run(
+        func,
+        args=["--alpha.a", "1", "--experiment-comment", TEST_COMMENT],
+        global_config=global_config,
+    )
 
     exp = Experiment.from_path(global_config.base_output_dir / "experiment")
     assert exp.comment == TEST_COMMENT
     assert exp.annotations["comment"] == TEST_COMMENT
 
 
-def test_annotation_comment_addition(global_config, monkeypatch, resources_path):
-    TEST_COMMENT = "Some string\nwith newline"
+def test_annotation_comment_addition(global_config, resources_path):
+    TEST_COMMENT = "Some string"
     EXPECTED_COMMENT = f"Config file comment\n\n{TEST_COMMENT}"
 
     def func(config: Config, cordage_trial):
         print(cordage_trial.annotations)
 
-    monkeypatch.setattr("sys.stdin", io.StringIO(TEST_COMMENT))
-
     conf_path = resources_path / "annotation.yaml"
 
-    cordage.run(func, args=["--series-comment", str(conf_path)], global_config=global_config)
+    cordage.run(func, args=["--experiment-comment", TEST_COMMENT, str(conf_path)], global_config=global_config)
 
     exp = Experiment.from_path(global_config.base_output_dir / "experiment")
     assert exp.comment == EXPECTED_COMMENT
