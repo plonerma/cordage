@@ -208,6 +208,27 @@ def apply_nested_type_mapping(data: Mapping, type_mapping: Mapping[Type, Callabl
     return result
 
 
+def get_nested_field(dataclass_instance, field_name: str) -> Any:
+    assert dataclasses.is_dataclass(dataclass_instance)
+
+    value = dataclass_instance
+
+    for k in field_name.split("."):
+        value = getattr(value, k)
+
+    return value
+
+
+def set_nested_field(dataclass_instance, field_name: str, value: Any):
+    *first_keys, last_key = field_name.split(".")
+
+    obj = dataclass_instance
+    for k in first_keys:
+        obj = getattr(obj, k)
+
+    setattr(obj, last_key, value)
+
+
 def to_dict(data: Any) -> dict:
     """Represent the fields and values of configuration as a (nested) dict."""
     mapping: Mapping

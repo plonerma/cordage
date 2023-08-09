@@ -2,14 +2,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+from config_classes import NestedConfig
+from config_classes import SimpleConfig as Config
 
-from cordage.util import from_file, to_file
-
-
-@dataclass
-class Config:
-    a: int = 1
-    b: str = "2"
+import cordage
+from cordage.util import from_file, get_nested_field, set_nested_field, to_file
 
 
 @pytest.mark.parametrize("extension", ["toml", "yaml", "yml", "yl", "json"])
@@ -54,3 +51,14 @@ def test_value_casting(tmp_path):
     assert loaded.data["p"] == "."
     assert loaded.data["i"] == 42
     assert loaded.data["pi"] == 3.14
+
+
+def test_nested_value_retrieval(global_config):
+    def func(config: NestedConfig):
+        assert get_nested_field(config, "alpha.a") == 42
+
+        set_nested_field(config, "alpha.a", 123)
+
+        assert get_nested_field(config, "alpha.a") == 123
+
+    cordage.run(func, ["--alpha.a", "42", "--beta.a", "c_value"], global_config=global_config)
