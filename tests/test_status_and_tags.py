@@ -1,39 +1,9 @@
-from dataclasses import dataclass, field
-
 import pytest
+from config_classes import AlphaConfig
+from config_classes import NestedConfig as Config
 
 import cordage
 from cordage import Experiment
-
-
-@dataclass
-class AlphaConfig:
-    a: int
-    b: str = "b_value"
-
-
-@dataclass
-class BetaConfig:
-    a: str = "a_value"
-    b: int = 0
-
-
-@dataclass
-class Config:
-    """config_description.
-
-    :param a: a_help_str
-    :param d: wrong_help_text
-    """
-
-    alpha: AlphaConfig
-    beta: BetaConfig = field(default_factory=BetaConfig)
-
-    a: str = "e_default"
-
-    # these fields are used in test_more_trial_series for checking the configuration and output dir etc.
-    alphas: int = 1
-    betas: int = 1
 
 
 def test_trial_series_list(global_config, resources_path):

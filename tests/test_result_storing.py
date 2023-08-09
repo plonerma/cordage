@@ -1,16 +1,11 @@
 import re
-from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
+from config_classes import SimpleConfig as Config
+
 import cordage
 from cordage import Experiment
-
-
-@dataclass
-class Config:
-    a: int = 42
-    b: str = "test"
 
 
 def test_dict_return_value(global_config):

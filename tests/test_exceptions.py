@@ -1,14 +1,7 @@
-from dataclasses import dataclass
-
 import pytest
+from config_classes import SimpleConfig as Config
 
 import cordage
-
-
-@dataclass
-class Config:
-    a: int = 42
-    b: str = "test"
 
 
 def test_exception_logging(global_config):

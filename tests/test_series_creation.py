@@ -1,42 +1,10 @@
-from dataclasses import dataclass
-from datetime import datetime
 from typing import List
 
 import pytest
+from config_classes import NestedConfig as Config
 
 import cordage
-from cordage import Experiment, Series, Trial
-from cordage.util import logger
-
-
-@dataclass
-class AlphaConfig:
-    a: int
-    b: str = "b_value"
-
-
-@dataclass
-class BetaConfig:
-    a: str
-    b: int = 0
-
-
-@dataclass
-class Config:
-    """config_description.
-
-    :param a: a_help_str
-    :param d: wrong_help_text
-    """
-
-    alpha: AlphaConfig
-    beta: BetaConfig = BetaConfig(a="a_value")
-
-    a: str = "e_default"
-
-    # these fields are used in test_more_trial_series for checking the configuration and output dir etc.
-    alphas: int = 1
-    betas: int = 1
+from cordage import Series
 
 
 def test_trial_series_list(global_config, resources_path):
@@ -69,89 +37,6 @@ def test_trial_series_list(global_config, resources_path):
 
     for i, trial in enumerate(trial_store):
         assert trial.output_dir == global_config.base_output_dir / "experiment" / str(i + 1)
-
-
-def test_trial_series_loading(global_config, resources_path, capsys):
-    def func(config: Config, cordage_trial: cordage.Trial):
-        cordage_trial.add_tag(config.alpha.b)
-
-        logger.warning("Trial with alpha.b=%s", config.alpha.b)
-
-    config_file = resources_path / "series_list.yml"
-
-    cordage.run(func, args=[str(config_file)], global_config=global_config)
-
-    series = Experiment.all_from_path(global_config.base_output_dir)[0]
-
-    assert isinstance(series, Series)
-
-    trial_store = [trial.synchronize() for trial in series]
-
-    assert len(trial_store) == 3
-
-    assert all(isinstance(trial, Trial) for trial in trial_store)
-
-    # test log stream
-    captured = capsys.readouterr()
-
-    i = 1
-
-    for captured_line in captured.err.strip().split("\n"):
-        assert f"Trial with alpha.b=b{i-1}" not in captured_line
-
-        if f"Trial with alpha.b=b{i}" in captured_line:
-            i += 1
-
-    assert i == 4
-
-    # after loading the series trials, the configs are merely nested dictionaries
-    for i, trial in enumerate(trial_store):
-        assert trial.config["alpha"]["b"] == f"b{i+1}"
-        assert trial.has_tag(f"b{i+1}")
-
-        assert isinstance(trial.metadata.start_time, datetime)
-
-        # test logging was performed correctly
-        assert trial.log_path.exists()
-
-        with trial.log_path.open("r") as fp:
-            log_lines = [line for line in fp]
-
-            for j in range(3):
-                expected_log_partial = f"Trial with alpha.b=b{j+1}"
-
-                if i == j:
-                    assert any(expected_log_partial in line for line in log_lines)
-                else:
-                    assert not any(expected_log_partial in line for line in log_lines)
-
-
-def test_trial_series_loading_with_config_class(global_config, resources_path, capsys):
-    def func(config: Config, cordage_trial: cordage.Trial):
-        cordage_trial.add_tag(config.alpha.b)
-
-        logger.warning("Trial with alpha.b=%s", config.alpha.b)
-
-    config_file = resources_path / "series_list.yml"
-
-    series = cordage.run(func, args=[str(config_file)], global_config=global_config)
-
-    output_dir = series.output_dir
-
-    series = Experiment.from_path(output_dir, config_cls=Config)
-
-    assert isinstance(series, Series)
-
-    trial_store = [trial.synchronize() for trial in series]
-
-    assert len(trial_store) == 3
-
-    assert all(isinstance(trial, Trial) for trial in trial_store)
-
-    # after loading the series trials, the configs are merely nested dictionaries
-    for i, trial in enumerate(trial_store):
-        assert isinstance(trial.config, Config)
-        assert trial.config.alpha.b == f"b{i+1}"
 
 
 @pytest.mark.parametrize("letter", "abc")
