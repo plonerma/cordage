@@ -183,7 +183,7 @@ class FunctionContext:
         )
 
         self.argument_parser.add_argument(
-            "--experiment-comment",
+            "--cordage-comment",
             type=str,
             help="Add a comment to the annotation of this series.",
             default=MISSING,

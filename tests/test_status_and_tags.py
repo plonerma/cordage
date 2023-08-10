@@ -62,7 +62,7 @@ def test_annotation_comment(global_config, monkeypatch):
 
     cordage.run(
         func,
-        args=["--alpha.a", "1", "--experiment-comment", TEST_COMMENT],
+        args=["--alpha.a", "1", "--cordage-comment", TEST_COMMENT],
         global_config=global_config,
     )
 
@@ -80,7 +80,7 @@ def test_annotation_comment_addition(global_config, resources_path):
 
     conf_path = resources_path / "annotation.yaml"
 
-    cordage.run(func, args=["--experiment-comment", TEST_COMMENT, str(conf_path)], global_config=global_config)
+    cordage.run(func, args=["--cordage-comment", TEST_COMMENT, str(conf_path)], global_config=global_config)
 
     exp = Experiment.from_path(global_config.base_output_dir / "experiment")
     assert exp.comment == EXPECTED_COMMENT
