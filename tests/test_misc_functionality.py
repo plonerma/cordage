@@ -53,7 +53,7 @@ def test_function_context_from_configuration(global_config):
     def func(config: SimpleConfig):
         pass
 
-    context = FunctionContext(func)
+    context = FunctionContext(func, global_config=global_config)
 
     trial = context.from_configuration(config=SimpleConfig())
 
@@ -89,3 +89,22 @@ def test_output_dir_path_correction(global_config, monkeypatch, tmp_path):
     assert str(all_exp[0].output_dir).startswith("..")
     assert all_exp[0].output_dir.resolve() == output_dir
     assert all_exp[0].result is None
+
+
+def test_config_only(global_config):
+    def func(config: SimpleConfig):
+        pass
+
+    cordage.run(func, args=[], global_config=global_config, config_only=True)
+
+    # since no outputdir is assigned, the base dir should not be created
+    assert not global_config.base_output_dir.exists()
+
+
+def test_config_only_func_params(global_config):
+    def func(config: SimpleConfig, output_dir):
+        pass
+
+    with pytest.raises(TypeError):
+        # function should not need an output_dir
+        cordage.run(func, args=[], global_config=global_config, config_only=True)

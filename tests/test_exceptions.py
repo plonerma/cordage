@@ -54,7 +54,7 @@ def test_function_invalid_object_to_execute(global_config):
     def func(config: Config):
         pass
 
-    context = cordage.FunctionContext(func)
+    context = cordage.FunctionContext(func, global_config=global_config)
 
     with pytest.raises(TypeError) as e_info:
         context.execute(object())  # type: ignore

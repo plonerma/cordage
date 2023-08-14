@@ -46,6 +46,8 @@ class GlobalConfig:
 
     strict_mode: bool = True
 
+    config_only: bool = False
+
     param_names: ParameterNameConfig = field(default_factory=ParameterNameConfig)
 
     logging: LoggingConfig = field(default_factory=LoggingConfig)

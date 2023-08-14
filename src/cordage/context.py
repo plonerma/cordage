@@ -3,7 +3,6 @@ import dataclasses
 import inspect
 import sys
 from contextlib import contextmanager
-from os import PathLike
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Mapping, Optional, Type, TypeVar, Union, get_args, get_origin
 
@@ -72,7 +71,7 @@ class ExperimentStack(metaclass=Singleton):
         return len(self.running)
 
     @contextmanager
-    def with_experiment_on_stack(self, experiment: Experiment):
+    def with_experiment_on_stack(self, experiment: Experiment, with_experiment: bool = True):
         """Put a new experiment on the stack and set its parent_dir to the experiment which was running so far."""
         if self.peek() == experiment:
             yield experiment
@@ -82,7 +81,10 @@ class ExperimentStack(metaclass=Singleton):
 
             self.push(experiment)
             try:
-                with experiment:
+                if with_experiment:
+                    with experiment:
+                        yield experiment
+                else:
                     yield experiment
             finally:
                 self.pop()
@@ -107,11 +109,11 @@ class FunctionContext:
     def __init__(
         self,
         func: Callable,
+        global_config: GlobalConfig,
         description: Optional[str] = None,
         config_cls: Optional[Type] = None,
-        global_config: Union[str, PathLike, Dict, GlobalConfig, None] = None,
     ):
-        self.global_config = GlobalConfig.resolve(global_config)
+        self.global_config = global_config
         self.set_function(func)
         self.set_config_cls(config_cls)
         self.set_description(description)
@@ -182,21 +184,22 @@ class FunctionContext:
             dest=self.global_config._series_skip_key,
         )
 
-        self.argument_parser.add_argument(
-            "--cordage-comment",
-            type=str,
-            help="Add a comment to the annotation of this series.",
-            default=MISSING,
-            dest=self.global_config._experiment_comment_key,
-        )
+        if not self.global_config.config_only:
+            self.argument_parser.add_argument(
+                "--cordage-comment",
+                type=str,
+                help="Add a comment to the annotation of this series.",
+                default=MISSING,
+                dest=self.global_config._experiment_comment_key,
+            )
 
-        self.argument_parser.add_argument(
-            "--output-dir",
-            type=Path,
-            help="Path to use as the output directory.",
-            default=MISSING,
-            dest=self.global_config._output_dir_key,
-        )
+            self.argument_parser.add_argument(
+                "--output-dir",
+                type=Path,
+                help="Path to use as the output directory.",
+                default=MISSING,
+                dest=self.global_config._output_dir_key,
+            )
 
     def _add_argument_to_parser(self, arg_name: str, arg_type: Any, help: str, **kw):
         # If the field is also a dataclass, recurse (nested config)
@@ -290,16 +293,17 @@ class FunctionContext:
                 # pass the configuration
                 func_kw[name] = trial.config
 
-            elif name == self.global_config.param_names.output_dir:
-                # pass path to output directory
-                if issubclass(param.annotation, str):
-                    func_kw[name] = str(trial.output_dir)
-                else:
-                    func_kw[name] = trial.output_dir
+            elif not self.global_config.config_only:
+                if name == self.global_config.param_names.output_dir:
+                    # pass path to output directory
+                    if issubclass(param.annotation, str):
+                        func_kw[name] = str(trial.output_dir)
+                    else:
+                        func_kw[name] = trial.output_dir
 
-            elif name == self.global_config.param_names.trial_object:
-                # pass trial object
-                func_kw[name] = trial
+                elif name == self.global_config.param_names.trial_object:
+                    # pass trial object
+                    func_kw[name] = trial
 
         return func_kw
 
@@ -322,8 +326,15 @@ class FunctionContext:
         argument_data: dict = vars(self.argument_parser.parse_args(args))
         argument_data = self.remove_missing_values(argument_data)
 
-        cli_series_comment = argument_data.pop(self.global_config._experiment_comment_key, None)
-        output_dir = argument_data.pop(self.global_config._output_dir_key, None)
+        series_kw = {
+            "function": self.func_name,
+            "global_config": self.global_config,
+            "additional_info": {"description": self.description, "parsed_arguments": args},
+        }
+
+        if not self.global_config.config_only:
+            cli_series_comment = argument_data.pop(self.global_config._experiment_comment_key, None)
+            series_kw["output_dir"] = argument_data.pop(self.global_config._output_dir_key, None)
 
         config_path = argument_data.pop(".", None)
 
@@ -334,38 +345,34 @@ class FunctionContext:
 
             new_conf_data = nest_items(new_conf_data.items())
 
-            series_spec = new_conf_data.pop(self.global_config._series_spec_key, None)
+            series_kw["series_spec"] = new_conf_data.pop(self.global_config._series_spec_key, None)
 
             nested_update(new_conf_data, argument_data)
 
             argument_data = new_conf_data
 
-            # another series comment might be given via the config file
-            # in this case, the comments are added to another
-            conf_file_comment = argument_data.pop(self.global_config._experiment_comment_key, None)
+            if not self.global_config.config_only:
+                # another series comment might be given via the config file
+                # in this case, the comments are added to another
+                conf_file_comment = argument_data.pop(self.global_config._experiment_comment_key, None)
         else:
-            series_spec = None
+            series_kw["series_spec"] = None
             conf_file_comment = None
 
         # series skip might be given via the command line ("--series-skip <n>") or a config file "__series-skip__"
-        series_skip = argument_data.pop(self.global_config._series_skip_key, None)
+        series_kw["series_skip"] = argument_data.pop(self.global_config._series_skip_key, None)
 
-        base_config = config_from_dict(self.main_config_cls, argument_data, strict=self.global_config.strict_mode)
-
-        series: Series = Series(
-            function=self.func_name,
-            base_config=base_config,
-            output_dir=output_dir,
-            global_config=self.global_config,
-            series_spec=series_spec,
-            series_skip=series_skip,
-            additional_info={"description": self.description, "parsed_arguments": args},
+        series_kw["base_config"] = config_from_dict(
+            self.main_config_cls, argument_data, strict=self.global_config.strict_mode
         )
 
-        if cli_series_comment is not None and conf_file_comment is not None:
-            series.comment = conf_file_comment + "\n\n" + cli_series_comment
-        else:
-            series.comment = conf_file_comment or cli_series_comment or ""
+        series: Series = Series(**series_kw)
+
+        if not self.global_config.config_only:
+            if cli_series_comment is not None and conf_file_comment is not None:
+                series.comment = conf_file_comment + "\n\n" + cli_series_comment
+            else:
+                series.comment = conf_file_comment or cli_series_comment or ""
 
         logger.debug("%d experiments found in configuration", len(series))
 
@@ -416,13 +423,16 @@ class FunctionContext:
         """Execute a given experiment (with the function of this `FunctionContext`)."""
         if isinstance(experiment, Trial):
             # execute function with the constructed keyword arguments
-            with experiment_stack.with_experiment_on_stack(experiment):
+            with experiment_stack.with_experiment_on_stack(
+                experiment, with_experiment=(not self.global_config.config_only)
+            ):
                 func_kw = self.construct_func_kwargs(experiment)
-
                 experiment.metadata.result = self.func(**func_kw)
 
         elif isinstance(experiment, Series):
-            with experiment_stack.with_experiment_on_stack(experiment):
+            with experiment_stack.with_experiment_on_stack(
+                experiment, with_experiment=(not self.global_config.config_only)
+            ):
                 for trial in experiment:
                     self.execute(trial)
         else:
