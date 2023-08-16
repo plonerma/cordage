@@ -26,7 +26,7 @@ deserialization_map: Dict[Type[Any], Callable[..., Any]] = {
 types_to_cast: List[Type[Any]] = [Path, float, bool, int, str, tuple]
 
 
-def get_loader(extension):
+def get_loader(extension: str) -> Callable:
     """Load relevant module for reading a file with the given extension."""
     if extension not in ("toml", "yaml", "yml", "yl", "json"):
         raise RuntimeError(f"Unrecognized file format: '.{extension}' (supported are .toml, .yaml, and .json).")
@@ -72,7 +72,7 @@ def read_dict_from_file(path: PathLike) -> Dict[str, Any]:
         return loader(conf_file)
 
 
-def get_writer(extension):
+def get_writer(extension: str) -> Callable:
     """Load relevant module for reading a file with the given extension."""
     if extension not in ("toml", "yaml", "yml", "yl", "json"):
         raise RuntimeError(f"Unrecognized file format: '.{extension}' (supported are .toml, .yaml, and .json).")
