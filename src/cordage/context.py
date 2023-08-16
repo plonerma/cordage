@@ -71,20 +71,16 @@ class ExperimentStack(metaclass=Singleton):
         return len(self.running)
 
     @contextmanager
-    def with_experiment_on_stack(self, experiment: Experiment, with_experiment: bool = True):
+    def with_experiment_on_stack(self, experiment: Experiment):
         """Put a new experiment on the stack and set its parent_dir to the experiment which was running so far."""
         if self.peek() == experiment:
             yield experiment
 
         else:
             experiment.metadata.parent_dir = self.peek_dir()
-
             self.push(experiment)
             try:
-                if with_experiment:
-                    with experiment:
-                        yield experiment
-                else:
+                with experiment:
                     yield experiment
             finally:
                 self.pop()
@@ -422,18 +418,25 @@ class FunctionContext:
     def execute(self, experiment: Experiment):
         """Execute a given experiment (with the function of this `FunctionContext`)."""
         if isinstance(experiment, Trial):
-            # execute function with the constructed keyword arguments
-            with experiment_stack.with_experiment_on_stack(
-                experiment, with_experiment=(not self.global_config.config_only)
-            ):
+            if self.global_config.config_only:
+                # execute function with the constructed keyword arguments
                 func_kw = self.construct_func_kwargs(experiment)
                 experiment.metadata.result = self.func(**func_kw)
 
+            else:
+                # only use stack if full feature-set is used
+                with experiment_stack.with_experiment_on_stack(experiment):
+                    func_kw = self.construct_func_kwargs(experiment)
+                    experiment.metadata.result = self.func(**func_kw)
+
         elif isinstance(experiment, Series):
-            with experiment_stack.with_experiment_on_stack(
-                experiment, with_experiment=(not self.global_config.config_only)
-            ):
+            if self.global_config.config_only:
                 for trial in experiment:
                     self.execute(trial)
+            else:
+                with experiment_stack.with_experiment_on_stack(experiment):
+                    for trial in experiment:
+                        self.execute(trial)
+
         else:
             raise TypeError("Passed object must be Trial or Series")
