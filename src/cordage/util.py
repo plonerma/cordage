@@ -3,7 +3,22 @@ import logging
 from datetime import datetime, timedelta
 from os import PathLike
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Tuple, Type, TypeVar, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 
 import dacite
 
@@ -118,13 +133,39 @@ def write_dict_to_file(path: PathLike, data: Mapping[str, Any]):
         return writer(data, conf_file)
 
 
-def flattened_items(nested_dict: Dict[Any, Any], prefix: tuple = (), sep=None):
+@overload
+def flattened_items(nested_dict: Dict[Any, Any]) -> Generator[Tuple[Tuple[Any, ...], Any], None, None]:
+    ...
+
+
+@overload
+def flattened_items(
+    nested_dict: Dict[Any, Any], *, prefix: tuple
+) -> Generator[Tuple[Tuple[Any, ...], Any], None, None]:
+    ...
+
+
+@overload
+def flattened_items(nested_dict: Dict[Any, Any], *, sep: Optional[str]) -> Generator[Tuple[str, Any], None, None]:
+    ...
+
+
+@overload
+def flattened_items(
+    nested_dict: Dict[Any, Any], *, prefix: tuple, sep: Optional[str]
+) -> Generator[Tuple[str, Any], None, None]:
+    ...
+
+
+def flattened_items(
+    nested_dict: Dict[Any, Any], *, prefix: tuple = (), sep: Optional[str] = None
+) -> Generator[Tuple[Union[str, Tuple[Any, ...]], Any], None, None]:
     """Iter over all items in a nested dictionary."""
     for k, v in nested_dict.items():
         flat_k = prefix + (k,)
 
         if isinstance(v, dict):
-            for ik, iv in flattened_items(v, flat_k):
+            for ik, iv in flattened_items(v, prefix=flat_k):
                 if sep is None:
                     yield ik, iv
                 else:
@@ -147,7 +188,7 @@ def nested_update(target_dict: Dict, update_dict: Mapping):
     return target_dict
 
 
-def nest_items(flat_items: Iterable[Tuple[Union[str, Tuple[str, ...]], Any]]) -> Dict[str, Any]:
+def nest_items(flat_items: Iterable[Tuple[Union[str, Tuple[Any, ...]], Any]]) -> Dict[str, Any]:
     """Unflatten a dict.
 
     If any keys contain '.', sub-dicts will be created.
@@ -156,7 +197,7 @@ def nest_items(flat_items: Iterable[Tuple[Union[str, Tuple[str, ...]], Any]]) ->
     dicts_to_nest: List[str] = []
 
     for k, v in flat_items:
-        k_tuple: Tuple[str, ...]
+        k_tuple: Tuple[Any, ...]
         if isinstance(k, tuple):
             k_tuple = k
         else:

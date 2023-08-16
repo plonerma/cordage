@@ -12,7 +12,22 @@ from math import ceil, floor, log10
 from os import PathLike, getpid
 from pathlib import Path
 from traceback import format_exception
-from typing import Any, Dict, Generator, Generic, Iterable, List, Mapping, Optional, Set, Type, TypeVar, Union, cast
+from typing import (
+    Any,
+    Dict,
+    Generator,
+    Generic,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 from dacite import DaciteError
 
@@ -507,16 +522,16 @@ class Series(Generic[T], Experiment):
             super().__exit__(*args)
         # else: do nothing
 
-    def get_changing_fields(self):
-        keys = set()
+    def get_changing_fields(self, sep: Optional[str] = None) -> Set[Union[Tuple[Any, ...], str]]:
+        keys: Set[Union[Tuple[Any, ...], str]] = set()
 
         if isinstance(self.series_spec, list):
             for trial_update in self.series_spec:
-                for k, _ in flattened_items(trial_update):
+                for k, _ in flattened_items(trial_update, sep=sep):
                     keys.add(k)
 
         elif isinstance(self.series_spec, dict):
-            for k, _ in flattened_items(self.series_spec):
+            for k, _ in flattened_items(self.series_spec, sep=sep):
                 keys.add(k)
 
         return keys
