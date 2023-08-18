@@ -36,7 +36,7 @@ def test_trial_series_list(global_config, resources_path):
     assert trial_store[2].metadata.additional_info["trial_index"] == 2
 
     for i, trial in enumerate(trial_store):
-        assert trial.output_dir == global_config.base_output_dir / "experiment" / str(i + 1)
+        assert trial.output_dir == global_config.base_output_dir / "experiment" / str(i)
 
 
 @pytest.mark.parametrize("letter", "abc")
@@ -61,10 +61,10 @@ def test_more_trial_series(global_config, resources_path, letter):
         assert trial.metadata.parent_dir.parts[-1] == "experiment"
 
         if len(trial_store) <= 10:
-            assert trial.output_dir == global_config.base_output_dir / "experiment" / f"{i+1}"
+            assert trial.output_dir == global_config.base_output_dir / "experiment" / f"{i}"
 
         else:
-            assert trial.output_dir == global_config.base_output_dir / "experiment" / f"{i+1:02}"
+            assert trial.output_dir == global_config.base_output_dir / "experiment" / f"{i:02}"
 
 
 def test_invalid_trial_series(global_config, resources_path):
@@ -104,4 +104,4 @@ def test_trial_skipping(global_config, resources_path):
     assert trial_store[1].config.beta.a == "c3"
 
     for i, trial in enumerate(trial_store, start=1):
-        assert trial.output_dir == global_config.base_output_dir / "experiment" / str(i + 1)
+        assert trial.output_dir == global_config.base_output_dir / "experiment" / str(i)

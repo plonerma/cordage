@@ -640,7 +640,7 @@ class Series(Generic[T], Experiment):
             skip = 0 if include_skipped else self.series_skip
 
             for i, trial in enumerate(self.trials[skip:], start=skip):
-                trial_subdir = str(i + 1).zfill(ceil(log10(len(self))))
+                trial_subdir = str(i).zfill(ceil(log10(len(self))))
 
                 trial.metadata.output_dir = self.output_dir / trial_subdir
 

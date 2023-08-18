@@ -19,7 +19,7 @@ def test_manual_output_dir_for_series(global_config, tmp_path, resources_path):
     def func(config: SimpleConfig, cordage_trial, output_dir):
         assert "trial_index" in cordage_trial.metadata.additional_info
         assert output_dir == tmp_path / "some_specific_output_dir" / str(
-            cordage_trial.metadata.additional_info["trial_index"] + 1
+            cordage_trial.metadata.additional_info["trial_index"]
         )
 
     cordage.run(
