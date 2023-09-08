@@ -69,3 +69,6 @@ check_untyped_defs = true
 [tool.isort]
 profile = "black"
 line_length = 120
+
+[tool.ruff]
+line-length = 120

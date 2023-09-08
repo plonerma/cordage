@@ -402,7 +402,7 @@ class Experiment(Annotatable):
                 handler.setFormatter(colorlog.ColoredFormatter(f"%(log_color)s%(levelname)-8s%(reset)s {format_str}"))
             else:
                 handler = logging.StreamHandler()
-                handler.setFormatter(colorlog.ColoredFormatter(f"%(levelname)-8s {format_str}"))
+                handler.setFormatter(logging.Formatter(f"%(levelname)-8s {format_str}"))
 
             logger.addHandler(handler)
             self.log_handlers.append(handler)
@@ -417,7 +417,7 @@ class Experiment(Annotatable):
             self.log_handlers.append(handler)
 
     def teardown_log(self):
-        logger = colorlog.getLogger()
+        logger = logging.getLogger()
 
         for handler in self.log_handlers:
             handler.close()
