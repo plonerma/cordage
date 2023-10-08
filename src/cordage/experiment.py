@@ -27,6 +27,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    overload,
 )
 
 from dacite import DaciteError
@@ -522,8 +523,16 @@ class Series(Generic[T], Experiment):
             super().__exit__(*args)
         # else: do nothing
 
-    def get_changing_fields(self, sep: Optional[str] = None) -> Set[Union[Tuple[Any, ...], str]]:
-        keys: Set[Union[Tuple[Any, ...], str]] = set()
+    @overload
+    def get_changing_fields(self, sep: None) -> Set[Tuple[Any, ...]]:
+        ...
+
+    @overload
+    def get_changing_fields(self, sep: str) -> Set[str]:
+        ...
+
+    def get_changing_fields(self, sep: Optional[str] = None) -> Union[Set[Tuple[Any, ...]], Set[str]]:
+        keys: Union[Set[Tuple[Any, ...]], Set[str]] = set()
 
         if isinstance(self.series_spec, list):
             for trial_update in self.series_spec:
