@@ -8,8 +8,8 @@ of features. If you think it could be useful for you, try it out and leave sugge
 improvements as github issues.
 
 
-# Quick Start
-## Installation
+## Quick Start
+### Installation
 
 In your environment of choice, run:
 
@@ -19,7 +19,7 @@ pip install git+https://github.com/plonerma/cordage.git
 
 Cordage requires python>=3.8.
 
-## Usage
+### Usage
 
 In many cases, we want to execute and parameterize a main function.
 Since experiments can quickly become more complex and may use an increasing number of parameters,
@@ -27,7 +27,7 @@ it often makes sense to store these parameters in a `dataclass`.
 
 Cordage makes it easy to load configuration files or configure the experiment via the commandline.
 
-### Example
+#### Example
 
 ```python
 from dataclasses import dataclass
