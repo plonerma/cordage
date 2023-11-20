@@ -5,7 +5,6 @@
 
 
 [![Build status](https://github.com/plonerma/cordage/actions/workflows/tests.yml/badge.svg)](https://github.com/plonerma/cordage/actions)
-
 [![PyPI - Version](https://img.shields.io/pypi/v/cordage.svg?logo=pypi&label=Version&logoColor=gold)](https://pypi.org/project/cordage/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/cordage.svg?logo=python&label=Python&logoColor=gold)](https://pypi.org/project/cordage/)
 [![PyPI - License](https://img.shields.io/pypi/l/cordage?logo=pypi&logoColor=gold)](https://pypi.org/project/cordage/)
