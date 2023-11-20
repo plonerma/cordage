@@ -1,11 +1,15 @@
-![Cordage Icon](icon.svg)
+![Cordage Icon](https://raw.githubusercontent.com/plonerma/cordage/main/icon.svg)
 
 
 # Cordage: Computational Research Data Management
 
 
 [![Build status](https://github.com/plonerma/cordage/actions/workflows/tests.yml/badge.svg)](https://github.com/plonerma/cordage/actions)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
+[![PyPI - Version](https://img.shields.io/pypi/v/cordage.svg?logo=pypi&label=Version&logoColor=gold)](https://pypi.org/project/cordage/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/cordage.svg?logo=python&label=Python&logoColor=gold)](https://pypi.org/project/cordage/)
+[![PyPI - License](https://img.shields.io/pypi/l/cordage?logo=pypi&logoColor=gold)](https://pypi.org/project/cordage/)
+[![Code style: black](https://img.shields.io/badge/Code%20style-black-000000.svg)](https://github.com/psf/black)
 
 Parameterize experiments using dataclasses and used cordage to easily parse configuration files and command line
 options.
