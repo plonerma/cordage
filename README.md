@@ -1,7 +1,11 @@
-# Cordage: Computational Research Data Management
-
 ![Cordage Icon](icon.svg)
 
+
+# Cordage: Computational Research Data Management
+
+
+[![Build status](https://github.com/plonerma/cordage/actions/workflows/tests.yml/badge.svg)](https://github.com/plonerma/cordage/actions)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 This is project is in a very early stage. It currently lacks a lot of documentation, proper testing, and a wide range
 of features. If you think it could be useful for you, try it out and leave suggestions, complains, ideas for
