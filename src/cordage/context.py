@@ -4,14 +4,14 @@ import inspect
 import sys
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Mapping, Optional, Type, TypeVar, Union, get_args, get_origin
+from typing import Any, Callable, ClassVar, Dict, List, Literal, Mapping, Optional, Type, Union, get_args, get_origin
 
 from docstring_parser import parse as parse_docstring
 
-from .experiment import Experiment, Series, Trial
-from .global_config import GlobalConfig
-from .util import from_dict as config_from_dict
-from .util import logger, nest_items, nested_update, read_dict_from_file
+from cordage.experiment import Experiment, Series, Trial
+from cordage.global_config import GlobalConfig
+from cordage.util import from_dict as config_from_dict
+from cordage.util import logger, nest_items, nested_update, read_dict_from_file
 
 
 class MissingType:
@@ -22,17 +22,15 @@ class MissingType:
 MISSING = MissingType()
 
 
-T = TypeVar("T")
-
 SUPPORTED_PRIMITIVES = (int, bool, str, float, Path)
 
 
 class Singleton(type):
-    _instances: Dict[Type, Any] = {}
+    _instances: ClassVar[Dict[Type, Any]] = {}
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+            cls._instances[cls] = super().__call__(*args, **kwargs)
         return cls._instances[cls]
 
 
@@ -104,7 +102,7 @@ class FunctionContext:
 
     def __init__(
         self,
-        func: Callable,
+        func: Callable,  # expects a dataclass
         global_config: GlobalConfig,
         description: Optional[str] = None,
         config_cls: Optional[Type] = None,
@@ -134,10 +132,11 @@ class FunctionContext:
             self.main_config_cls = config_cls
 
         if not dataclasses.is_dataclass(self.main_config_cls):
-            raise TypeError(
+            msg = (
                 f"Configuration class could not be derived: Either pass a configuration dataclass via `config_cls` or"
                 f"annotate the configuration parameter `{self.global_config.param_names.config}` with a dataclass."
             )
+            raise TypeError(msg)
 
     @property
     def func(self) -> Callable:
@@ -157,7 +156,8 @@ class FunctionContext:
         self._func_name = self.func.__name__
 
         if self.global_config.param_names.config not in self.func_parameters:
-            raise TypeError(f"Callable must accept config argument (as `{self.global_config.param_names.config}`).")
+            msg = f"Callable must accept config argument (as `{self.global_config.param_names.config}`)."
+            raise TypeError(msg)
 
     def construct_argument_parser(self):
         """Construct an argparser for a given config class."""
@@ -197,62 +197,61 @@ class FunctionContext:
                 dest=self.global_config._output_dir_key,
             )
 
-    def _add_argument_to_parser(self, arg_name: str, arg_type: Any, help: str, **kw):
+    def _add_argument_to_parser(self, arg_name: str, arg_type: Any, help: str, **kw):  # noqa: A002
         # If the field is also a dataclass, recurse (nested config)
         if dataclasses.is_dataclass(arg_type):
             self.add_arguments_to_parser(arg_type, prefix=arg_name)
 
             self.argument_parser.add_argument(f"--{arg_name}", type=Path, default=MISSING, help=help, **kw)
-        else:
-            # Look the field annotation to determine which type of argument to add
+        # Look the field annotation to determine which type of argument to add
 
-            # Choice field
-            if get_origin(arg_type) is Literal:
-                # Value must be from this set
-                choices = get_args(arg_type)
+        # Choice field
+        elif get_origin(arg_type) is Literal:
+            # Value must be from this set
+            choices = get_args(arg_type)
 
-                literal_arg_type = type(choices[0])
+            literal_arg_type = type(choices[0])
 
-                if any((not isinstance(c, literal_arg_type) for c in choices)):
-                    raise TypeError(f"If Literal is used, all values must be of the same type ({arg_name}).")
+            if any(not isinstance(c, literal_arg_type) for c in choices):
+                msg = f"If Literal is used, all values must be of the same type ({arg_name})."
+                raise TypeError(msg)
 
-                self.argument_parser.add_argument(
-                    f"--{arg_name}", type=literal_arg_type, choices=choices, default=MISSING, help=help, **kw
-                )
+            self.argument_parser.add_argument(
+                f"--{arg_name}", type=literal_arg_type, choices=choices, default=MISSING, help=help, **kw
+            )
 
-            elif get_origin(arg_type) is Union:
-                args = get_args(arg_type)
+        elif get_origin(arg_type) is Union:
+            args = [arg for arg in get_args(arg_type) if arg != type(None)]
 
-                if len(args) == 2 and isinstance(None, args[1]):
-                    # optional
-                    self._add_argument_to_parser(arg_name, args[0], help=help, **kw)
+            if len(args) == 1:
+                # optional
+                self._add_argument_to_parser(arg_name, args[0], help=help, **kw)
 
-                else:
-                    raise TypeError("Config parser does not support Union annotations.")
+            else:
+                msg = "Config parser does not support Union annotations with more than one type other than None."
+                raise TypeError(msg)
 
-            # Boolean field
-            elif arg_type == bool:
-                # Create a true and a false flag -> the destination is identical
-                self.argument_parser.add_argument(
-                    f"--{arg_name}", action="store_true", default=MISSING, help=help + " (set the value to True)", **kw
-                )
+        # Boolean field
+        elif arg_type == bool:
+            # Create a true and a false flag -> the destination is identical
+            self.argument_parser.add_argument(
+                f"--{arg_name}", action="store_true", default=MISSING, help=help + " (set the value to True)", **kw
+            )
 
-                self.argument_parser.add_argument(
-                    f"--not-{arg_name}",
-                    dest=arg_name,
-                    action="store_false",
-                    default=MISSING,
-                    help=help + " (set the value to False)",
-                    **kw,
-                )
+            self.argument_parser.add_argument(
+                f"--not-{arg_name}",
+                dest=arg_name,
+                action="store_false",
+                default=MISSING,
+                help=help + " (set the value to False)",
+                **kw,
+            )
 
-            elif arg_type in SUPPORTED_PRIMITIVES:
-                self.argument_parser.add_argument(f"--{arg_name}", type=arg_type, default=MISSING, help=help, **kw)
+        elif arg_type in SUPPORTED_PRIMITIVES:
+            self.argument_parser.add_argument(f"--{arg_name}", type=arg_type, default=MISSING, help=help, **kw)
 
-    def add_arguments_to_parser(self, config_cls: Type[T], prefix: Optional[str] = None):
+    def add_arguments_to_parser(self, config_cls: Type, prefix: Optional[str] = None):
         """Recursively (if nested) iterate over all fields in the dataclass and add arguments to parser."""
-
-        assert dataclasses.is_dataclass(config_cls)
 
         # read documentation of config dataclass. If no help metadata is given, this will be used a the help text.
         param_doc = {}
@@ -322,6 +321,9 @@ class FunctionContext:
         argument_data: dict = vars(self.argument_parser.parse_args(args))
         argument_data = self.remove_missing_values(argument_data)
 
+        conf_file_comment: Optional[str] = None
+        cli_series_comment: Optional[str] = None
+
         series_kw = {
             "function": self.func_name,
             "global_config": self.global_config,
@@ -353,7 +355,6 @@ class FunctionContext:
                 conf_file_comment = argument_data.pop(self.global_config._experiment_comment_key, None)
         else:
             series_kw["series_spec"] = None
-            conf_file_comment = None
 
         # series skip might be given via the command line ("--series-skip <n>") or a config file "__series-skip__"
         series_kw["series_skip"] = argument_data.pop(self.global_config._series_skip_key, None)
@@ -439,4 +440,5 @@ class FunctionContext:
                         self.execute(trial)
 
         else:
-            raise TypeError("Passed object must be Trial or Series")
+            msg = "Passed object must be Trial or Series"
+            raise TypeError(msg)

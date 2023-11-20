@@ -10,6 +10,7 @@ from typing import (
     Generator,
     Iterable,
     List,
+    Literal,
     Mapping,
     Optional,
     Tuple,
@@ -43,8 +44,9 @@ types_to_cast: List[Type[Any]] = [Path, float, bool, int, str, tuple]
 
 def get_loader(extension: str) -> Callable:
     """Load relevant module for reading a file with the given extension."""
+    msg = f"Unrecognized file format: '.{extension}' (supported are .toml, .yaml, and .json)."
     if extension not in ("toml", "yaml", "yml", "yl", "json"):
-        raise RuntimeError(f"Unrecognized file format: '.{extension}' (supported are .toml, .yaml, and .json).")
+        raise RuntimeError(msg)
 
     loader: Callable
 
@@ -54,7 +56,8 @@ def get_loader(extension: str) -> Callable:
 
             loader = toml_loader
         except ModuleNotFoundError as exc:
-            raise RuntimeError(f"Package toml is required to read .{extension} files.") from exc
+            msg = f"Package toml is required to read .{extension} files."
+            raise RuntimeError(msg) from exc
 
     elif extension in ("yaml", "yml", "yl"):
         try:
@@ -62,14 +65,16 @@ def get_loader(extension: str) -> Callable:
 
             loader = yaml_loader
         except ModuleNotFoundError as exc:
-            raise RuntimeError(f"Package pyyaml is required to read .{extension} files.") from exc
+            msg = f"Package pyyaml is required to read .{extension} files."
+            raise RuntimeError(msg) from exc
     else:
         try:
             from json import load as json_loader
 
             loader = json_loader
         except ModuleNotFoundError as exc:
-            raise RuntimeError(f"Package json is required to read .{extension} files.") from exc
+            msg = f"Package json is required to read .{extension} files."
+            raise RuntimeError(msg) from exc
 
     return loader
 
@@ -83,14 +88,15 @@ def read_dict_from_file(path: PathLike) -> Dict[str, Any]:
 
     loader = get_loader(extension)
 
-    with open(path, "r", encoding="utf-8") as conf_file:
+    with open(path, encoding="utf-8") as conf_file:
         return loader(conf_file)
 
 
 def get_writer(extension: str) -> Callable:
     """Load relevant module for reading a file with the given extension."""
     if extension not in ("toml", "yaml", "yml", "yl", "json"):
-        raise RuntimeError(f"Unrecognized file format: '.{extension}' (supported are .toml, .yaml, and .json).")
+        msg = f"Unrecognized file format: '.{extension}' (supported are .toml, .yaml, and .json)."
+        raise RuntimeError(msg)
 
     writer: Callable
 
@@ -100,7 +106,8 @@ def get_writer(extension: str) -> Callable:
 
             writer = toml_dump
         except ModuleNotFoundError as exc:
-            raise RuntimeError(f"Package toml is required to read .{extension} files.") from exc
+            msg = f"Package toml is required to read .{extension} files."
+            raise RuntimeError(msg) from exc
 
     elif extension in ("yaml", "yml", "yl"):
         try:
@@ -108,14 +115,16 @@ def get_writer(extension: str) -> Callable:
 
             writer = yaml_dump
         except ModuleNotFoundError as exc:
-            raise RuntimeError(f"Package pyyaml is required to write .{extension} files.") from exc
+            msg = f"Package pyyaml is required to write .{extension} files."
+            raise RuntimeError(msg) from exc
     else:
         try:
             from json import dump as json_dump
 
             writer = json_dump
         except ModuleNotFoundError as exc:
-            raise RuntimeError(f"Package json is required to read .{extension} files.") from exc
+            msg = f"Package json is required to read .{extension} files."
+            raise RuntimeError(msg) from exc
 
     return writer
 
@@ -133,36 +142,34 @@ def write_dict_to_file(path: PathLike, data: Mapping[str, Any]):
         return writer(data, conf_file)
 
 
-@overload
-def flattened_items(nested_dict: Dict[Any, Any]) -> Generator[Tuple[Tuple[Any, ...], Any], None, None]:
-    ...
-
-
+# no separator
 @overload
 def flattened_items(
-    nested_dict: Dict[Any, Any], *, prefix: tuple
+    nested_dict: Dict[Any, Any], *, sep: Literal[None] = None, prefix: Tuple[Any, ...] = ()
 ) -> Generator[Tuple[Tuple[Any, ...], Any], None, None]:
     ...
 
 
-@overload
-def flattened_items(nested_dict: Dict[Any, Any], *, sep: Optional[str]) -> Generator[Tuple[str, Any], None, None]:
-    ...
-
-
+# spearator given
 @overload
 def flattened_items(
-    nested_dict: Dict[Any, Any], *, prefix: tuple, sep: Optional[str]
+    nested_dict: Dict[Any, Any], *, sep: str, prefix: Tuple[str, ...] = ()
 ) -> Generator[Tuple[str, Any], None, None]:
     ...
 
 
 def flattened_items(
-    nested_dict: Dict[Any, Any], *, prefix: tuple = (), sep: Optional[str] = None
-) -> Generator[Tuple[Union[str, Tuple[Any, ...]], Any], None, None]:
+    nested_dict: Dict,
+    *,
+    sep: Optional[str] = None,
+    prefix: Tuple[Any, ...] = (),
+) -> Generator[Union[Tuple[str, Any], Tuple[Tuple[Any, ...], Any]], None, None]:
     """Iter over all items in a nested dictionary."""
     for k, v in nested_dict.items():
-        flat_k = prefix + (k,)
+        flat_k: Tuple = (
+            *prefix,
+            k,
+        )
 
         if isinstance(v, dict):
             for ik, iv in flattened_items(v, prefix=flat_k):
@@ -170,11 +177,10 @@ def flattened_items(
                     yield ik, iv
                 else:
                     yield sep.join(ik), iv
+        elif sep is None:
+            yield flat_k, v
         else:
-            if sep is None:
-                yield flat_k, v
-            else:
-                yield sep.join(flat_k), v
+            yield sep.join(flat_k), v
 
 
 def nested_update(target_dict: Dict, update_dict: Mapping):
@@ -223,12 +229,12 @@ def nest_items(flat_items: Iterable[Tuple[Union[str, Tuple[Any, ...]], Any]]) ->
     return nested_dict
 
 
-def from_dict(data_class: Type[T], data: Mapping, strict: bool = True) -> T:
+def from_dict(data_class: Type[T], data: Mapping, *, strict: bool = True) -> T:
     config = dacite.Config(cast=types_to_cast, type_hooks=deserialization_map, strict=strict)
     return dacite.from_dict(data_class, data, config)
 
 
-def from_file(config_cls: Type[T], path: PathLike, **kwargs):
+def from_file(config_cls: Type[T], path: PathLike, **kwargs) -> T:
     data: Mapping = read_dict_from_file(path)
     return from_dict(config_cls, data, **kwargs)
 
@@ -237,14 +243,16 @@ def apply_nested_type_mapping(data: Mapping, type_mapping: Mapping[Type, Callabl
     result = {}
 
     for k, v in data.items():
-        if isinstance(v, Mapping):
-            v = apply_nested_type_mapping(v, type_mapping)
-
-        for t, func in type_mapping.items():
-            if isinstance(v, t):
-                v = func(v)
-
         result[k] = v
+
+        if isinstance(v, Mapping):
+            result[k] = apply_nested_type_mapping(v, type_mapping)
+
+        else:
+            for t, func in type_mapping.items():
+                if isinstance(v, t):
+                    result[k] = func(v)
+                    break
 
     return result
 

@@ -21,7 +21,7 @@ class Config:
 
 def train(config: Config):
     # to something
-    print(config)
+    print(config)  # noqa: T201
 
 
 if __name__ == "__main__":

@@ -13,9 +13,9 @@ from dacite.exceptions import (
     WrongTypeError,
 )
 
-from .context import FunctionContext
-from .experiment import Experiment, Metadata, Series, Trial
-from .global_config import GlobalConfig
+from cordage.context import FunctionContext
+from cordage.experiment import Experiment, Metadata, Series, Trial
+from cordage.global_config import GlobalConfig
 
 
 def run(

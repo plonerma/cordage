@@ -1,9 +1,13 @@
+import logging
+
 import pytest
 from config_classes import AlphaConfig
 from config_classes import NestedConfig as Config
 
 import cordage
 from cordage import Experiment
+
+log = logging.getLogger(__name__)
 
 
 def test_trial_series_list(global_config, resources_path):
@@ -54,56 +58,56 @@ def test_trial_series_list(global_config, resources_path):
     assert len(Experiment.all_from_path(global_config.base_output_dir)) == 1
 
 
-def test_annotation_comment(global_config, monkeypatch):
-    TEST_COMMENT = "Some string"
+def test_annotation_comment(global_config):
+    test_comment = "Some string"
 
-    def func(config: Config, cordage_trial):
-        print(cordage_trial.annotations)
+    def func(config: Config, cordage_trial):  # noqa: ARG001
+        log.info(str(cordage_trial.annotations))
 
     cordage.run(
         func,
-        args=["--alpha.a", "1", "--cordage-comment", TEST_COMMENT],
+        args=["--alpha.a", "1", "--cordage-comment", test_comment],
         global_config=global_config,
     )
 
     exp = Experiment.from_path(global_config.base_output_dir / "experiment")
-    assert exp.comment == TEST_COMMENT
-    assert exp.annotations["comment"] == TEST_COMMENT
+    assert exp.comment == test_comment
+    assert exp.annotations["comment"] == test_comment
 
 
 def test_annotation_comment_addition(global_config, resources_path):
-    TEST_COMMENT = "Some string"
-    EXPECTED_COMMENT = f"Config file comment\n\n{TEST_COMMENT}"
+    test_comment = "Some string"
+    expected_comment = f"Config file comment\n\n{test_comment}"
 
-    def func(config: Config, cordage_trial):
-        print(cordage_trial.annotations)
+    def func(config: Config, cordage_trial):  # noqa: ARG001
+        log.info(str(cordage_trial.annotations))
 
     conf_path = resources_path / "annotation.yaml"
 
-    cordage.run(func, args=["--cordage-comment", TEST_COMMENT, str(conf_path)], global_config=global_config)
+    cordage.run(func, args=["--cordage-comment", test_comment, str(conf_path)], global_config=global_config)
 
     exp = Experiment.from_path(global_config.base_output_dir / "experiment")
-    assert exp.comment == EXPECTED_COMMENT
-    assert exp.annotations["comment"] == EXPECTED_COMMENT
+    assert exp.comment == expected_comment
+    assert exp.annotations["comment"] == expected_comment
 
 
 def test_config_annotation_comment(global_config, resources_path):
-    EXPECTED_COMMENT = "Config file comment"
+    expected_comment = "Config file comment"
 
-    def func(config: Config, cordage_trial):
-        print(cordage_trial.annotations)
+    def func(config: Config, cordage_trial):  # noqa: ARG001
+        log.info(str(cordage_trial.annotations))
 
     conf_path = resources_path / "annotation.yaml"
 
     cordage.run(func, args=[str(conf_path)], global_config=global_config)
 
     exp = Experiment.from_path(global_config.base_output_dir / "experiment")
-    assert exp.comment == EXPECTED_COMMENT
-    assert exp.annotations["comment"] == EXPECTED_COMMENT
+    assert exp.comment == expected_comment
+    assert exp.annotations["comment"] == expected_comment
 
 
 def test_function_name_saving(global_config, resources_path):
-    def func(config: Config):
+    def func(config: Config):  # noqa: ARG001
         pass
 
     conf_path = resources_path / "annotation.yaml"

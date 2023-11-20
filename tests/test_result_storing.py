@@ -9,8 +9,8 @@ from cordage import Experiment
 
 
 def test_dict_return_value(global_config):
-    def func(config: Config, cordage_trial):
-        return dict(a=1, b="string", c=Path("."))
+    def func(config: Config, cordage_trial):  # noqa: ARG001
+        return {"a": 1, "b": "string", "c": Path(".")}
 
     trial = cordage.run(func, args=[], global_config=global_config)
 
@@ -34,8 +34,8 @@ def test_dict_return_value(global_config):
 
 
 def test_path_return_value(global_config):
-    def func(config: Config, cordage_trial):
-        return dict(a=1, b="string", c=Path("."))
+    def func(config: Config, cordage_trial):  # noqa: ARG001
+        return {"a": 1, "b": "string", "c": Path(".")}
 
     trial = cordage.run(func, args=[], global_config=global_config)
 
@@ -61,7 +61,7 @@ def test_path_return_value(global_config):
 def test_float_return_value(global_config):
     trial_store: List[cordage.Trial] = []
 
-    def func(config: Config, cordage_trial, trial_store=trial_store):
+    def func(config: Config, cordage_trial, trial_store=trial_store):  # noqa: ARG001
         return 0.0
 
     trial = cordage.run(func, args=[], global_config=global_config)
@@ -81,7 +81,7 @@ def test_unserializable_return_value(global_config, capsys):
     class SomeObject:
         pass
 
-    def func(config: Config, cordage_trial):
+    def func(config: Config, cordage_trial):  # noqa: ARG001
         return SomeObject()
 
     trial = cordage.run(func, args=[], global_config=global_config)

@@ -1,7 +1,11 @@
+import logging
+
 import pytest
 from config_classes import SimpleConfig as Config
 
 import cordage
+
+log = logging.getLogger(__name__)
 
 
 def test_exception_logging(global_config):
@@ -10,8 +14,9 @@ def test_exception_logging(global_config):
     class SomeSpecificError(RuntimeError):
         pass
 
-    def func(config: Config):
-        raise SomeSpecificError("Exception42")
+    def func(config: Config):  # noqa: ARG001
+        msg = "Exception42"
+        raise SomeSpecificError(msg)
 
     context = cordage.FunctionContext(func, global_config=global_config)
     trial = context.parse_args([])
@@ -24,14 +29,14 @@ def test_exception_logging(global_config):
     assert "Exception42" in trial.metadata.additional_info["exception"]["short"]
     assert "Exception42" in trial.metadata.additional_info["exception"]["traceback"]
 
-    with open(trial.log_path, "r") as f:
+    with open(trial.log_path) as f:
         log_content = f.read()
 
     assert "Exception42" in log_content
 
 
-def test_function_without_annotation(global_config):
-    def func(config):
+def test_function_without_annotation():
+    def func(config):  # noqa: ARG001
         pass
 
     with pytest.raises(TypeError) as e_info:
@@ -40,7 +45,7 @@ def test_function_without_annotation(global_config):
     assert "Configuration class could not be derived" in str(e_info.value)
 
 
-def test_function_without_config_parameter(global_config):
+def test_function_without_config_parameter():
     def func():
         pass
 
@@ -51,7 +56,7 @@ def test_function_without_config_parameter(global_config):
 
 
 def test_function_invalid_object_to_execute(global_config):
-    def func(config: Config):
+    def func(config: Config):  # noqa: ARG001
         pass
 
     context = cordage.FunctionContext(func, global_config=global_config)
@@ -71,6 +76,6 @@ def test_multiple_runtime_exceptions(global_config):
     exp = cordage.Experiment(function="no_function", global_config=global_config)
 
     with pytest.raises(RuntimeError):
-        print(exp.output_dir)
+        log.info(str(exp.output_dir))
 
     assert "status: pending" in repr(exp)

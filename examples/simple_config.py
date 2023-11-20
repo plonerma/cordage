@@ -13,8 +13,8 @@ class Config:
 def train(config: Config, output_dir: Path):
     """Help text which will be shown."""
 
-    print(output_dir)
-    print(config)
+    print(output_dir)  # noqa: T201
+    print(config)  # noqa: T201
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ import shutil
 from copy import deepcopy
 from dataclasses import dataclass, field
 from dataclasses import replace as dataclass_replace
-from datetime import datetime
+from datetime import datetime, timezone
 from itertools import count, product
 from json.decoder import JSONDecodeError
 from math import ceil, floor, log10
@@ -19,6 +19,7 @@ from typing import (
     Generic,
     Iterable,
     List,
+    Literal,
     Mapping,
     Optional,
     Set,
@@ -37,8 +38,8 @@ try:
 except ImportError:
     colorlog = None  # type: ignore
 
-from .global_config import GlobalConfig
-from .util import flattened_items, from_dict, logger, nest_items, nested_update, to_dict
+from cordage.global_config import GlobalConfig
+from cordage.util import flattened_items, from_dict, logger, nest_items, nested_update, to_dict
 
 T = TypeVar("T")
 
@@ -90,14 +91,13 @@ class MetadataStore:
 
         if metadata is not None:
             if global_config is not None or len(kw) > 0:
-                raise TypeError("Using the `metadata` argument is incompatible with using other arguments.")
+                msg = "Using the `metadata` argument is incompatible with using other arguments."
+                raise TypeError(msg)
             else:
                 self.metadata = metadata
         else:
             if global_config is None:
                 global_config = GlobalConfig()
-            else:
-                assert isinstance(global_config, GlobalConfig)
 
             self.metadata = Metadata(global_config=global_config, **kw)
 
@@ -108,7 +108,8 @@ class MetadataStore:
     @property
     def output_dir(self) -> Path:
         if self.metadata.output_dir is None:
-            raise RuntimeError(f"{self.__class__.__name__} has not been started yet.")
+            msg = f"{self.__class__.__name__} has not been started yet."
+            raise RuntimeError(msg)
         else:
             return self.metadata.output_dir
 
@@ -136,7 +137,8 @@ class MetadataStore:
 
             if path in tried_paths:
                 # suffix was already tried: assume that further tries wont resolve this collision
-                raise RuntimeError(f"Path {path} does already exist - collision could not be avoided.")
+                msg = f"Path {path} does already exist - collision could not be avoided."
+                raise RuntimeError(msg)
 
             try:
                 path.mkdir(parents=True, exist_ok=False)
@@ -163,7 +165,6 @@ class MetadataStore:
 
             def invalid_obj_default(obj):
                 logger.warning("Cannot serialize %s", str(obj))
-                return None
 
             json.dump(md_dict, fp, indent=4, default=invalid_obj_default)
 
@@ -272,7 +273,7 @@ class Experiment(Annotatable):
         Set start time, create output directory, registers run, etc.
         """
         assert self.status == "pending", f"{self.__class__.__name__} has already been started."
-        self.metadata.start_time = datetime.now()
+        self.metadata.start_time = datetime.now(timezone.utc).astimezone()
         self.metadata.status = "running"
         self.metadata.additional_info["process_id"] = getpid()
         self.create_output_dir()
@@ -285,7 +286,7 @@ class Experiment(Annotatable):
 
         Write metadata, close logs, etc.
         """
-        self.metadata.end_time = datetime.now()
+        self.metadata.end_time = datetime.now(timezone.utc).astimezone()
         self.metadata.status = status
         self.save_metadata()
         self.save_annotations()
@@ -357,7 +358,7 @@ class Experiment(Annotatable):
         return experiment
 
     @classmethod
-    def all_from_path(cls, results_path: Union[str, PathLike], skip_hidden: bool = True) -> List["Experiment"]:
+    def all_from_path(cls, results_path: Union[str, PathLike], *, skip_hidden: bool = True) -> List["Experiment"]:
         """Load all experiments from the results_path."""
         results_path = Path(results_path)
 
@@ -381,7 +382,7 @@ class Experiment(Annotatable):
             except (JSONDecodeError, DaciteError) as exc:
                 logger.warning("Couldn't load '%s': %s", str(path), str(exc))
 
-        return list(sorted(experiments, key=lambda exp: exp.output_dir))
+        return sorted(experiments, key=lambda exp: exp.output_dir)
 
     def setup_log(self):
         logger = logging.getLogger()
@@ -434,8 +435,11 @@ class Trial(Generic[T], Experiment):
         **kw,
     ):
         if metadata is not None:
-            assert len(kw) == 0 and config is None
-            super().__init__(metadata)
+            if len(kw) == 0 and config is None:
+                super().__init__(metadata)
+            else:
+                msg = "If metadata are provided, config and additional keywords can not be set."
+                raise TypeError(msg)
         else:
             super().__init__(configuration=config, **kw)
 
@@ -524,7 +528,7 @@ class Series(Generic[T], Experiment):
         # else: do nothing
 
     @overload
-    def get_changing_fields(self, sep: None) -> Set[Tuple[Any, ...]]:
+    def get_changing_fields(self, sep: Literal[None] = None) -> Set[Tuple[Any, ...]]:
         ...
 
     @overload
@@ -532,7 +536,7 @@ class Series(Generic[T], Experiment):
         ...
 
     def get_changing_fields(self, sep: Optional[str] = None) -> Union[Set[Tuple[Any, ...]], Set[str]]:
-        keys: Union[Set[Tuple[Any, ...]], Set[str]] = set()
+        keys: Set = set()
 
         if isinstance(self.series_spec, list):
             for trial_update in self.series_spec:
@@ -547,12 +551,9 @@ class Series(Generic[T], Experiment):
 
     def get_trial_updates(self) -> Generator[Dict, None, None]:
         if isinstance(self.series_spec, list):
-            for trial_update in self.series_spec:
-                yield trial_update
+            yield from self.series_spec
         elif isinstance(self.series_spec, dict):
-            keys, values = zip(*flattened_items(self.series_spec))
-
-            keys = [".".join(k) for k in keys]
+            keys, values = zip(*flattened_items(self.series_spec, sep="."))
 
             for update_values in product(*values):
                 yield nest_items(zip(keys, update_values))
@@ -642,7 +643,7 @@ class Series(Generic[T], Experiment):
     def __iter__(self):
         return self.get_all_trials(include_skipped=False)
 
-    def get_all_trials(self, include_skipped: bool = False) -> Generator[Trial[T], None, None]:
+    def get_all_trials(self, *, include_skipped: bool = False) -> Generator[Trial[T], None, None]:
         assert self.trials is not None
 
         if not self.is_singular:

@@ -10,7 +10,7 @@ from cordage import Series
 def test_trial_series_list(global_config, resources_path):
     trial_store: List[cordage.Trial] = []
 
-    def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):
+    def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):  # noqa: ARG001
         trial_store.append(cordage_trial)
 
     config_file = resources_path / "series_list.yml"
@@ -43,7 +43,7 @@ def test_trial_series_list(global_config, resources_path):
 def test_more_trial_series(global_config, resources_path, letter):
     trial_store: List[cordage.Trial] = []
 
-    def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):
+    def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):  # noqa: ARG001
         trial_store.append(cordage_trial)
 
     config_file = resources_path / f"series_{letter}.toml"
@@ -68,7 +68,7 @@ def test_more_trial_series(global_config, resources_path, letter):
 
 
 def test_invalid_trial_series(global_config, resources_path):
-    def func(config: Config, cordage_trial: cordage.Trial):
+    def func(config: Config, cordage_trial: cordage.Trial):  # noqa: ARG001
         pass
 
     config_file = resources_path / "series_invalid.json"
@@ -84,7 +84,7 @@ def test_invalid_trial_series(global_config, resources_path):
 def test_trial_skipping(global_config, resources_path):
     trial_store: List[cordage.Trial] = []
 
-    def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):
+    def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):  # noqa: ARG001
         trial_store.append(cordage_trial)
 
     config_file = resources_path / "series_list.yml"

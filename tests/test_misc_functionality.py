@@ -10,7 +10,7 @@ from cordage import Experiment, FunctionContext, Series, Trial
 
 @pytest.mark.timeout(2)
 def test_timing(global_config):
-    def func(config: SimpleConfig, cordage_trial: cordage.Trial):
+    def func(config: SimpleConfig, cordage_trial: cordage.Trial):  # noqa: ARG001
         sleep(1)
 
     trial = cordage.run(func, args=[], global_config=global_config)
@@ -36,7 +36,7 @@ def test_timing(global_config):
 def test_trial_id_collision(global_config):
     trial_store: List[cordage.Trial] = []
 
-    def func(config: SimpleConfig, cordage_trial: cordage.Trial, trial_store=trial_store):
+    def func(config: SimpleConfig, cordage_trial: cordage.Trial, trial_store=trial_store):  # noqa: ARG001
         trial_store.append(cordage_trial)
 
     for _ in range(1010):
@@ -50,7 +50,7 @@ def test_trial_id_collision(global_config):
 
 @pytest.mark.timeout(1)
 def test_function_context_from_configuration(global_config):
-    def func(config: SimpleConfig):
+    def func(config: SimpleConfig):  # noqa: ARG001
         pass
 
     context = FunctionContext(func, global_config=global_config)
@@ -67,8 +67,8 @@ def test_function_context_from_configuration(global_config):
 
 
 @pytest.mark.timeout(1)
-def test_output_dir_path_correction(global_config, monkeypatch, tmp_path):
-    def func(config: SimpleConfig):
+def test_output_dir_path_correction(monkeypatch, tmp_path):
+    def func(config: SimpleConfig):  # noqa: ARG001
         pass
 
     run_dir = tmp_path / "run"
@@ -92,7 +92,7 @@ def test_output_dir_path_correction(global_config, monkeypatch, tmp_path):
 
 
 def test_config_only(global_config):
-    def func(config: SimpleConfig):
+    def func(config: SimpleConfig):  # noqa: ARG001
         pass
 
     cordage.run(func, args=[], global_config=global_config, config_only=True)
@@ -102,7 +102,7 @@ def test_config_only(global_config):
 
 
 def test_config_only_func_params(global_config):
-    def func(config: SimpleConfig, output_dir):
+    def func(config: SimpleConfig, output_dir):  # noqa: ARG001
         pass
 
     with pytest.raises(TypeError):

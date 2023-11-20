@@ -1,12 +1,6 @@
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Tuple
-
-if sys.version_info >= (3, 8):
-    from typing import Literal
-else:
-    from typing_extensions import Literal
+from typing import Literal, Optional, Tuple
 
 
 @dataclass
@@ -36,7 +30,7 @@ class NestedConfig:
     """
 
     alpha: AlphaConfig
-    beta: BetaConfig = BetaConfig(a="a_value")
+    beta: BetaConfig = field(default_factory=lambda: BetaConfig(a="a_value"))
 
     a: str = "e_default"
 

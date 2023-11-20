@@ -1,12 +1,12 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from os import PathLike
 from pathlib import Path
 from typing import Dict, Union
 
-from .util import from_dict as config_from_dict
-from .util import from_file as config_from_file
-from .util import logger
+from cordage.util import from_dict as config_from_dict
+from cordage.util import from_file as config_from_file
+from cordage.util import logger
 
 
 @dataclass
@@ -58,11 +58,13 @@ class GlobalConfig:
         self.validate_format_strings()
 
     def validate_format_strings(self):
+        dummy_time = datetime.now(timezone.utc).astimezone()
+
         # check the format strings
         self.output_dir_format.format(
             function="some_function",
             collision_suffix="_2",
-            start_time=datetime.now(),
+            start_time=dummy_time,
         )
 
     @classmethod
@@ -76,7 +78,8 @@ class GlobalConfig:
         elif isinstance(global_config, (str, Path)):
             global_config = Path(global_config)
             if not global_config.exists():
-                raise FileNotFoundError(f"Given cordage configuration path ({global_config}) does not exist.")
+                msg = f"Given cordage configuration path ({global_config}) does not exist."
+                raise FileNotFoundError(msg)
 
             logger.debug("Loading global config from file (%s).", global_config)
             return config_from_file(cls, global_config)
@@ -109,4 +112,5 @@ class GlobalConfig:
                 )
             return cls()
         else:
-            raise TypeError("`global_config` must be one of str, PathLike, dict, cordage.GlobalConfig, None")
+            msg = "`global_config` must be one of str, PathLike, dict, cordage.GlobalConfig, None"
+            raise TypeError(msg)

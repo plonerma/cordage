@@ -11,7 +11,7 @@ from cordage.util import from_file, get_nested_field, set_nested_field, to_file
 
 @pytest.mark.parametrize("extension", ["toml", "yaml", "yml", "yl", "json"])
 def test_different_extensions(tmp_path, extension):
-    config_data = dict(a=10, b="20")
+    config_data = {"a": 10, "b": "20"}
     config = Config(a=10, b="20")
 
     path = tmp_path / f"data.{extension}"
@@ -40,7 +40,7 @@ def test_value_casting(tmp_path):
     class ComplexConfig:
         data: dict
 
-    config = ComplexConfig(dict(p=Path("."), i=42, pi=3.14))
+    config = ComplexConfig({"p": Path("."), "i": 42, "pi": 3.14})
 
     path = tmp_path / "data.json"
 

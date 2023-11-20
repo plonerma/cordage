@@ -10,7 +10,7 @@ from cordage.util import logger
 
 @pytest.mark.timeout(1)
 def test_metadata_loading_config_class_casting(global_config):
-    def func(config: SimpleConfig):
+    def func(config: SimpleConfig):  # noqa: ARG001
         pass
 
     trial = cordage.run(func, args=["--a", "1", "--b", "2"], global_config=global_config)
@@ -21,12 +21,14 @@ def test_metadata_loading_config_class_casting(global_config):
 
     # try loading as dict
     experiment = Experiment.from_path(metadata_path)
+    assert isinstance(experiment, Trial)
     assert isinstance(experiment.config, dict)
     assert experiment.config["a"] == 1
     assert experiment.config["b"] == "2"
 
     # try loading with config class
     experiment = Experiment.from_path(metadata_path, config_cls=SimpleConfig)
+    assert isinstance(experiment, Trial)
     assert isinstance(experiment.config, SimpleConfig)
     assert experiment.config.a == 1
     assert experiment.config.b == "2"
@@ -76,7 +78,7 @@ def test_trial_series_loading(global_config, resources_path, capsys):
         assert trial.log_path.exists()
 
         with trial.log_path.open("r") as fp:
-            log_lines = [line for line in fp]
+            log_lines = list(fp)
 
             for j in range(3):
                 expected_log_partial = f"Trial with alpha.b=b{j+1}"
@@ -87,7 +89,7 @@ def test_trial_series_loading(global_config, resources_path, capsys):
                     assert not any(expected_log_partial in line for line in log_lines)
 
 
-def test_trial_series_loading_with_config_class(global_config, resources_path, capsys):
+def test_trial_series_loading_with_config_class(global_config, resources_path):
     def func(config: NestedConfig, cordage_trial: cordage.Trial):
         cordage_trial.add_tag(config.alpha.b)
 

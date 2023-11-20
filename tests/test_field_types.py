@@ -33,7 +33,7 @@ def test_loading(global_config, resources_path):
 
 
 def test_literal_fields(global_config, resources_path):
-    def func(config: Config):
+    def func(config: Config):  # noqa: ARG001
         pass
 
     config_file = resources_path / "simple_b.json"
@@ -43,7 +43,7 @@ def test_literal_fields(global_config, resources_path):
 
 
 def test_tuple_length_fields(global_config, resources_path):
-    def func(config: Config):
+    def func(config: Config):  # noqa: ARG001
         pass
 
     config_file = resources_path / "simple_c.toml"
@@ -54,7 +54,7 @@ def test_tuple_length_fields(global_config, resources_path):
 
 @pytest.mark.skip(reason="dacite currently does not properly support mixed tuples")
 def test_valid_mixed_tuple(global_config, resources_path):
-    def func(config: Config):
+    def func(config: Config):  # noqa: ARG001
         pass
 
     config_file = resources_path / "simple_d.json"
@@ -64,7 +64,7 @@ def test_valid_mixed_tuple(global_config, resources_path):
 
 @pytest.mark.skip(reason="dacite currently does not properly support mixed tuples")
 def test_invalid_mixed_tuple(global_config, resources_path):
-    def func(config: Config):
+    def func(config: Config):  # noqa: ARG001
         pass
 
     config_file = resources_path / "simple_e.toml"
@@ -74,7 +74,7 @@ def test_invalid_mixed_tuple(global_config, resources_path):
 
 
 def test_valid_optional(global_config, resources_path):
-    def func(config: Config):
+    def func(config: Config):  # noqa: ARG001
         pass
 
     config_file = resources_path / "simple_f.json"
