@@ -33,4 +33,4 @@ jobs:
     - name: Lint
       run: hatch run lint:all
     - name: Tests
-      run: hatch run +py=${{ matrix.python-version }} test
+      run: hatch run +py=${{ matrix.python-version }} all:test
