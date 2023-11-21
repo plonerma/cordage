@@ -165,17 +165,20 @@ class FunctionContext:
 
         self.argument_parser = argparse.ArgumentParser(description=self.description, usage=self.usage_str)
 
-        self.add_arguments_to_parser(self.main_config_cls)
-
         self.argument_parser.add_argument(
-            ".", metavar="config_file", nargs="?", help="Top-level config file to load.", type=Path, default=MISSING
+            ".",
+            metavar="config_file",
+            nargs="?",
+            help="Top-level config file to load (optional).",
+            type=Path,
+            default=MISSING,
         )
 
         self.argument_parser.add_argument(
             "--series-skip",
             type=int,
-            metavar="n",
-            help="Skip first n trials in the execution of a series.",
+            metavar="N",
+            help="Skip first N trials in the execution of a series.",
             default=MISSING,
             dest=self.global_config._series_skip_key,
         )
@@ -187,6 +190,7 @@ class FunctionContext:
                 help="Add a comment to the annotation of this series.",
                 default=MISSING,
                 dest=self.global_config._experiment_comment_key,
+                metavar="COMMENT",
             )
 
             self.argument_parser.add_argument(
@@ -195,14 +199,19 @@ class FunctionContext:
                 help="Path to use as the output directory.",
                 default=MISSING,
                 dest=self.global_config._output_dir_key,
+                metavar="PATH",
             )
+
+        self.arg_group_config = self.argument_parser.add_argument_group("configuration")
+        self.add_arguments_to_parser(self.main_config_cls)
 
     def _add_argument_to_parser(self, arg_name: str, arg_type: Any, help: str, **kw):  # noqa: A002
         # If the field is also a dataclass, recurse (nested config)
         if dataclasses.is_dataclass(arg_type):
+            self.arg_group_config.add_argument(
+                f"--{arg_name}", type=Path, default=MISSING, help=help, metavar="PATH", **kw
+            )
             self.add_arguments_to_parser(arg_type, prefix=arg_name)
-
-            self.argument_parser.add_argument(f"--{arg_name}", type=Path, default=MISSING, help=help, **kw)
         # Look the field annotation to determine which type of argument to add
 
         # Choice field
@@ -216,7 +225,7 @@ class FunctionContext:
                 msg = f"If Literal is used, all values must be of the same type ({arg_name})."
                 raise TypeError(msg)
 
-            self.argument_parser.add_argument(
+            self.arg_group_config.add_argument(
                 f"--{arg_name}", type=literal_arg_type, choices=choices, default=MISSING, help=help, **kw
             )
 
@@ -234,11 +243,11 @@ class FunctionContext:
         # Boolean field
         elif arg_type == bool:
             # Create a true and a false flag -> the destination is identical
-            self.argument_parser.add_argument(
+            self.arg_group_config.add_argument(
                 f"--{arg_name}", action="store_true", default=MISSING, help=help + " (set the value to True)", **kw
             )
 
-            self.argument_parser.add_argument(
+            self.arg_group_config.add_argument(
                 f"--not-{arg_name}",
                 dest=arg_name,
                 action="store_false",
@@ -248,7 +257,7 @@ class FunctionContext:
             )
 
         elif arg_type in SUPPORTED_PRIMITIVES:
-            self.argument_parser.add_argument(f"--{arg_name}", type=arg_type, default=MISSING, help=help, **kw)
+            self.arg_group_config.add_argument(f"--{arg_name}", type=arg_type, default=MISSING, help=help, **kw)
 
     def add_arguments_to_parser(self, config_cls: Type, prefix: Optional[str] = None):
         """Recursively (if nested) iterate over all fields in the dataclass and add arguments to parser."""

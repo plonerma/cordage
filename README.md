@@ -15,8 +15,8 @@ options.
 
 > [!IMPORTANT]  
 > Cordage is in a very early stage. Currently, it lacks a lot of documentation and wider range
-> of features. If you think it could be useful for you, try it out and leave suggestions, complains, ideas for
-> improvements as github issues.
+> of features. If you think it could be useful for you, try it out and leave suggestions, complains, and improvemnt ideas
+> as [github issues](https://github.com/plonerma/cordage/issues).
 
 
 ## Motivation
@@ -43,7 +43,7 @@ pip install cordage
 from dataclasses import dataclass
 import cordage
 
-
+
 @dataclass
 class Config:
     lr: float = 5e-5
@@ -65,3 +65,18 @@ Use `cordage.run(func)` to execute this function with arguments passed via the c
 configuration and creates an output directory (if the function accepts `output_dir`, it will be passed as such).
 
 See the examples in the examples directory for more details.
+
+
+## Features
+
+The main puprose of cordage is to manage configurations to make configuring reproducible experiments easy.
+Cordage automatically generates a commandline interface which can be used to parse configuration files and/or
+set specific configuration fields via CLI options (run the experiment with the `--help option` to get an overview
+over the available configuration fields).
+
+By using the `__series__` key, it is possible ot invoke multiple repetitions of an experiment using the same
+base configuration but varying some of the configuration fields. The resulting trial runs are (by default) 
+saved in a common series-level directory.
+
+Additionally, cordage can provide an output directory (via the `output_dir`) where cordage will store the used configuration
+as well as some experimental metadata.
