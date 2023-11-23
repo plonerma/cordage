@@ -2,6 +2,7 @@ import argparse
 import dataclasses
 import inspect
 import sys
+import dacite.exceptions
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable, ClassVar, Dict, List, Literal, Mapping, Optional, Type, Union, get_args, get_origin
@@ -368,9 +369,17 @@ class FunctionContext:
         # series skip might be given via the command line ("--series-skip <n>") or a config file "__series-skip__"
         series_kw["series_skip"] = argument_data.pop(self.global_config._series_skip_key, None)
 
-        series_kw["base_config"] = config_from_dict(
-            self.main_config_cls, argument_data, strict=self.global_config.strict_mode
-        )
+        try:
+            series_kw["base_config"] = config_from_dict(
+                self.main_config_cls, argument_data, strict=self.global_config.strict_mode
+            )
+        except dacite.exceptions.DaciteFieldError as e:
+            logger.critical(
+                'Configuration incomplete: %s.\n'
+                'Use "--%s" to specify the field via the command line or set the field in a configuration file.',
+                str(e), e.field_path
+            )
+            sys.exit(1)
 
         series: Series = Series(**series_kw)
 
