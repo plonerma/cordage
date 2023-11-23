@@ -69,7 +69,7 @@ See the examples in the examples directory for more details.
 
 ## Features
 
-The main puprose of cordage is to manage configurations to make configuring reproducible experiments easy.
+The main purpose of cordage is to manage configurations to make configuring reproducible experiments easy.
 Cordage automatically generates a commandline interface which can be used to parse configuration files and/or
 set specific configuration fields via CLI options (run the experiment with the `--help option` to get an overview
 over the available configuration fields).
