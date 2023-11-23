@@ -13,6 +13,7 @@ def global_config(tmp_path: Path) -> GlobalConfig:
         {
             "output_dir_format": "experiment{collision_suffix}",
             "base_output_dir": tmp_path / "results",
+            "catch_exception": False,
         },
     )
 

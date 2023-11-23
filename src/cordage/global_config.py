@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from os import PathLike
 from pathlib import Path
@@ -7,23 +7,6 @@ from typing import Dict, Union
 from cordage.util import from_dict as config_from_dict
 from cordage.util import from_file as config_from_file
 from cordage.util import logger
-
-
-@dataclass
-class ParameterNameConfig:
-    """Determines the names of the parameters in the function to be called by cordage."""
-
-    config: str = "config"
-    output_dir: str = "output_dir"
-    trial_object: str = "cordage_trial"
-
-
-@dataclass
-class LoggingConfig:
-    use: bool = True
-    to_stream: bool = True
-    to_file: bool = True
-    filename: str = "cordage.log"
 
 
 @dataclass
@@ -48,9 +31,18 @@ class GlobalConfig:
 
     config_only: bool = False
 
-    param_names: ParameterNameConfig = field(default_factory=ParameterNameConfig)
+    # Determines the logging behavior
+    logging_use: bool = True
+    logging_to_stream: bool = True
+    logging_to_file: bool = True
+    logging_filename: str = "cordage.log"
 
-    logging: LoggingConfig = field(default_factory=LoggingConfig)
+    # Determines the names of the parameters in the function to be called by cordage.
+    param_name_config: str = "config"
+    param_name_output_dir: str = "output_dir"
+    param_name_trial_object: str = "cordage_trial"
+
+    catch_exception: bool = True
 
     def __post_init__(self):
         super().__init__()

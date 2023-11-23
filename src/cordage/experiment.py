@@ -254,7 +254,7 @@ class Experiment(Annotatable):
 
     @property
     def log_path(self):
-        return self.output_dir / self.global_config.logging.filename
+        return self.output_dir / self.global_config.logging_filename
 
     @property
     def status(self) -> str:
@@ -387,7 +387,7 @@ class Experiment(Annotatable):
     def setup_log(self):
         logger = logging.getLogger()
 
-        if not self.global_config.logging.use:
+        if not self.global_config.logging_use:
             return
 
         # in this case, a StreamHandler was set up by the series
@@ -395,7 +395,7 @@ class Experiment(Annotatable):
 
         handler: logging.Handler
 
-        if self.global_config.logging.to_stream and is_toplevel:
+        if self.global_config.logging_to_stream and is_toplevel:
             # add colored stream handler
             format_str = "%(name)s:%(filename)s:%(lineno)d - %(message)s"
 
@@ -409,7 +409,7 @@ class Experiment(Annotatable):
             logger.addHandler(handler)
             self.log_handlers.append(handler)
 
-        if self.global_config.logging.to_file:
+        if self.global_config.logging_to_file:
             # setup logging to local output_dir
             formatter = logging.Formatter("%(asctime)s %(levelname)-8s %(name)s:%(filename)s:%(lineno)d - %(message)s")
             handler = logging.FileHandler(self.log_path)

@@ -96,7 +96,7 @@ def test_additional_keys_exception(global_config, resources_path):
     def func(config: NestedConfig):  # noqa: ARG001
         pass
 
-    with pytest.raises(cordage.UnexpectedDataError):
+    with pytest.raises(cordage.exceptions.CordageError):
         cordage.run(func, args=[str(resources_path / "nested_add_key.json")], global_config=global_config)
 
     # with strict mode off, this should not raise an exception

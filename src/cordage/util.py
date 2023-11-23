@@ -22,6 +22,9 @@ from typing import (
 )
 
 import dacite
+import dacite.exceptions
+
+import cordage.exceptions
 
 logger = logging.getLogger("cordage")
 
@@ -231,7 +234,25 @@ def nest_items(flat_items: Iterable[Tuple[Union[str, Tuple[Any, ...]], Any]]) ->
 
 def from_dict(data_class: Type[T], data: Mapping, *, strict: bool = True) -> T:
     config = dacite.Config(cast=types_to_cast, type_hooks=deserialization_map, strict=strict)
-    return dacite.from_dict(data_class, data, config)
+    try:
+        return dacite.from_dict(data_class, data, config)
+    except dacite.exceptions.WrongTypeError as e:
+        msg = (
+            f'Configuration incomplete: {e}.\n'
+            f'Use "{e.field_path}" to specify the field via the command line or set the field in a configuration file.'
+        )
+        raise cordage.exceptions.WrongTypeError(msg) from e
+
+    except dacite.exceptions.MissingValueError as e:
+        msg = (
+            f'Configuration incomplete: {e}.\n'
+            f'Use "{e.field_path}" to specify the field via the command line or set the field in a configuration file.'
+        )
+        raise cordage.exceptions.MissingValueError(msg) from e
+
+    except dacite.exceptions.DaciteError as e:
+        msg = f"Configuration incorrect: {e}."
+        raise cordage.exceptions.CordageError(msg) from e
 
 
 def from_file(config_cls: Type[T], path: PathLike, **kwargs) -> T:

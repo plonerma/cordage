@@ -2,7 +2,6 @@ import argparse
 import dataclasses
 import inspect
 import sys
-import dacite.exceptions
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable, ClassVar, Dict, List, Literal, Mapping, Optional, Type, Union, get_args, get_origin
@@ -127,7 +126,7 @@ class FunctionContext:
     def set_config_cls(self, config_cls: Optional[Type] = None):
         # derive configuration class
         if config_cls is None:
-            self.main_config_cls = self.func_parameters[self.global_config.param_names.config].annotation
+            self.main_config_cls = self.func_parameters[self.global_config.param_name_config].annotation
 
         else:
             self.main_config_cls = config_cls
@@ -135,7 +134,7 @@ class FunctionContext:
         if not dataclasses.is_dataclass(self.main_config_cls):
             msg = (
                 f"Configuration class could not be derived: Either pass a configuration dataclass via `config_cls` or"
-                f"annotate the configuration parameter `{self.global_config.param_names.config}` with a dataclass."
+                f"annotate the configuration parameter `{self.global_config.param_name_config}` with a dataclass."
             )
             raise TypeError(msg)
 
@@ -156,8 +155,8 @@ class FunctionContext:
         self._func_parameters = inspect.signature(func).parameters
         self._func_name = self.func.__name__
 
-        if self.global_config.param_names.config not in self.func_parameters:
-            msg = f"Callable must accept config argument (as `{self.global_config.param_names.config}`)."
+        if self.global_config.param_name_config not in self.func_parameters:
+            msg = f"Callable must accept config argument (as `{self.global_config.param_name_config}`)."
             raise TypeError(msg)
 
     def construct_argument_parser(self):
@@ -294,19 +293,19 @@ class FunctionContext:
         for name, param in self.func_parameters.items():
             assert param.kind != param.POSITIONAL_ONLY, "Cordage currently does not support positional only parameters."
 
-            if name == self.global_config.param_names.config:
+            if name == self.global_config.param_name_config:
                 # pass the configuration
                 func_kw[name] = trial.config
 
             elif not self.global_config.config_only:
-                if name == self.global_config.param_names.output_dir:
+                if name == self.global_config.param_name_output_dir:
                     # pass path to output directory
                     if issubclass(param.annotation, str):
                         func_kw[name] = str(trial.output_dir)
                     else:
                         func_kw[name] = trial.output_dir
 
-                elif name == self.global_config.param_names.trial_object:
+                elif name == self.global_config.param_name_trial_object:
                     # pass trial object
                     func_kw[name] = trial
 
@@ -369,17 +368,9 @@ class FunctionContext:
         # series skip might be given via the command line ("--series-skip <n>") or a config file "__series-skip__"
         series_kw["series_skip"] = argument_data.pop(self.global_config._series_skip_key, None)
 
-        try:
-            series_kw["base_config"] = config_from_dict(
-                self.main_config_cls, argument_data, strict=self.global_config.strict_mode
-            )
-        except dacite.exceptions.DaciteFieldError as e:
-            logger.critical(
-                'Configuration incomplete: %s.\n'
-                'Use "--%s" to specify the field via the command line or set the field in a configuration file.',
-                str(e), e.field_path
-            )
-            sys.exit(1)
+        series_kw["base_config"] = config_from_dict(
+            self.main_config_cls, argument_data, strict=self.global_config.strict_mode
+        )
 
         series: Series = Series(**series_kw)
 

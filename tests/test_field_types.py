@@ -4,6 +4,7 @@ import pytest
 from config_classes import LongConfig as Config
 
 import cordage
+import cordage.exceptions
 
 
 def test_simple_config(global_config):
@@ -38,7 +39,7 @@ def test_literal_fields(global_config, resources_path):
 
     config_file = resources_path / "simple_b.json"
 
-    with pytest.raises(cordage.WrongTypeError):
+    with pytest.raises(cordage.exceptions.WrongTypeError):
         cordage.run(func, args=[str(config_file)], global_config=global_config)
 
 
@@ -48,7 +49,7 @@ def test_tuple_length_fields(global_config, resources_path):
 
     config_file = resources_path / "simple_c.toml"
 
-    with pytest.raises(cordage.WrongTypeError):
+    with pytest.raises(cordage.exceptions.WrongTypeError):
         cordage.run(func, args=[str(config_file)], global_config=global_config)
 
 
@@ -69,7 +70,7 @@ def test_invalid_mixed_tuple(global_config, resources_path):
 
     config_file = resources_path / "simple_e.toml"
 
-    with pytest.raises(cordage.WrongTypeError):
+    with pytest.raises(cordage.exceptions.WrongTypeError):
         cordage.run(func, args=[str(config_file)], global_config=global_config)
 
 
