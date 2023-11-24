@@ -86,6 +86,7 @@ class Metadata:
 
 
 class MetadataStore:
+    _warned_deprecated_nested_global_config: bool = False
     def __init__(self, metadata: Optional[Metadata] = None, /, global_config: Optional[GlobalConfig] = None, **kw):
         self.metadata: Metadata
 
@@ -175,7 +176,23 @@ class MetadataStore:
             path = path / "cordage.json"
 
         with path.open("r", encoding="utf-8") as fp:
-            metadata = Metadata.from_dict(json.load(fp))
+            metadata_dict = json.load(fp)
+
+            if "logging" in metadata_dict["global_config"]:
+                if not cls._warned_deprecated_nested_global_config:
+                    logger.warning("Using deprecated nested global_config format.")
+                    cls._warned_deprecated_nested_global_config = True
+
+                for k, v in metadata_dict["global_config"]["logging"].items():
+                    metadata_dict["global_config"][f"logging_{k}"] = v
+
+                for k, v in metadata_dict["global_config"]["param_names"].items():
+                    metadata_dict["global_config"][f"param_name_{k}"] = v
+
+                del metadata_dict["global_config"]["logging"]
+                del metadata_dict["global_config"]["param_names"]
+
+            metadata = Metadata.from_dict(metadata_dict)
 
         if metadata.output_dir != path.parent:
             logger.info(
