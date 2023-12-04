@@ -87,6 +87,7 @@ class Metadata:
 
 class MetadataStore:
     _warned_deprecated_nested_global_config: bool = False
+
     def __init__(self, metadata: Optional[Metadata] = None, /, global_config: Optional[GlobalConfig] = None, **kw):
         self.metadata: Metadata
 
