@@ -50,6 +50,9 @@ dependencies = [
   "coverage[toml]>=6.5",
   "pytest",
   "pytest-timeout",
+  "mkdocs",
+  "mkdocs-material",
+  "mkdocstrings[python]",
 ]
 features = ["toml", "yaml"]
 [tool.hatch.envs.default.scripts]
@@ -62,6 +65,9 @@ cov-report = [
 cov = [
   "test-cov",
   "cov-report",
+]
+serve-docs = [
+  "mkdocs serve"
 ]
 
 [[tool.hatch.envs.all.matrix]]

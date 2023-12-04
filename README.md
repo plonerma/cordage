@@ -1,4 +1,4 @@
-![Cordage Icon](https://raw.githubusercontent.com/plonerma/cordage/main/icon.svg)
+![Cordage Icon](https://raw.githubusercontent.com/plonerma/cordage/main/docs/assets/icon.svg)
 
 
 # Cordage: Computational Research Data Management
