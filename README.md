@@ -29,6 +29,9 @@ Cordage makes it easy to load configuration files or configure the experiment vi
 
 
 ## Quick Start
+
+For more detailed information, check out the [documentation](https://plonerma.github.io/cordage/).
+
 ### Installation
 
 In an environment of your choice (python>=3.8), run:

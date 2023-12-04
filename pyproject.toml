@@ -26,7 +26,7 @@ dependencies = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/plonerma/cordage#readme"
+Documentation = "https://plonerma.github.io/cordage/"
 Issues = "https://github.com/plonerma/cordage/issues"
 Source = "https://github.com/plonerma/cordage"
 
