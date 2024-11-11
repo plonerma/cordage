@@ -11,6 +11,7 @@ permissions:
   contents: write
 jobs:
   deploy_documentation:
+    name: "Deploy documentation to github pages"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
