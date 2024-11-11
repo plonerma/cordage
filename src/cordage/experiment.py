@@ -58,8 +58,8 @@ if typing.TYPE_CHECKING:
 ConfigClass = TypeVar("ConfigClass", bound="DataclassInstance")
 
 
-class SeriesConfiguration(Generic[ConfigClass], TypedDict):
-    base_config: ConfigClass
+class SeriesConfiguration(TypedDict):
+    base_config: "DataclassInstance"
     series_spec: Union[List[Dict], Dict[str, List], None]
     series_skip: Optional[int]
 
