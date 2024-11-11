@@ -122,7 +122,7 @@ def test_incorrect_output_dir_type(global_config):
         b: str
         output_dir: int = 1
 
-    def func(config: ConfigWithOutputDir):  # noqa: ARG001
+    def func(config: ConfigWithOutputDir):
         pass
 
     with pytest.raises(TypeError):

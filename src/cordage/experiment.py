@@ -25,9 +25,9 @@ from typing import (
     Set,
     Tuple,
     Type,
+    TypedDict,
     TypeVar,
     Union,
-    cast,
     overload,
 )
 
@@ -38,25 +38,48 @@ try:
 except ImportError:
     colorlog = None  # type: ignore
 
-from cordage.global_config import GlobalConfig
-from cordage.util import config_output_dir_type, flattened_items, from_dict, logger, nest_items, nested_update, to_dict
+import typing
 
-T = TypeVar("T")
+from cordage.global_config import GlobalConfig
+from cordage.util import (
+    config_output_dir_type,
+    flattened_items,
+    from_dict,
+    logger,
+    nest_items,
+    nested_update,
+    to_dict,
+)
+
+if typing.TYPE_CHECKING:
+    from _typeshed import DataclassInstance
+
+
+ConfigClass = TypeVar("ConfigClass", bound="DataclassInstance")
+
+
+class SeriesConfiguration(TypedDict):
+    base_config: "DataclassInstance"
+    series_spec: Union[List[Dict], Dict[str, List], None]
+    series_skip: Optional[int]
+
+
+Configuration = TypeVar("Configuration", SeriesConfiguration, "DataclassInstance")
 
 
 @dataclass
-class Metadata:
+class Metadata(Generic[Configuration]):
     function: str
 
     global_config: GlobalConfig
+
+    configuration: Union[Configuration, Dict[str, Any]]
 
     output_dir: Optional[Path] = None
     status: str = "pending"
 
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
-
-    configuration: Any = None
 
     result: Any = None
 
@@ -85,10 +108,12 @@ class Metadata:
         return from_dict(cls, data)
 
 
-class MetadataStore:
+class MetadataStore(Generic[Configuration]):
     _warned_deprecated_nested_global_config: bool = False
 
-    def __init__(self, metadata: Optional[Metadata] = None, /, global_config: Optional[GlobalConfig] = None, **kw):
+    def __init__(
+        self, metadata: Optional[Metadata[Configuration]] = None, /, global_config: Optional[GlobalConfig] = None, **kw
+    ):
         self.metadata: Metadata
 
         if metadata is not None:
@@ -209,7 +234,7 @@ class MetadataStore:
         return metadata
 
 
-class Annotatable(MetadataStore):
+class Annotatable(MetadataStore[Configuration]):
     TAG_PATTERN = re.compile(r"\B#(\w*[a-zA-Z]+\w*)")
 
     def __init__(self, *args, **kw):
@@ -262,7 +287,7 @@ class Annotatable(MetadataStore):
                 self.annotations = json.load(fp)
 
 
-class Experiment(Annotatable):
+class Experiment(Annotatable[Configuration]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -359,7 +384,7 @@ class Experiment(Annotatable):
         return self
 
     @classmethod
-    def from_path(cls, path: PathLike, config_cls: Optional[Type] = None):
+    def from_path(cls, path: PathLike, config_cls: Optional[Type[ConfigClass]] = None):
         metadata: Metadata = cls.load_metadata(path)
 
         experiment: Experiment
@@ -448,12 +473,12 @@ class Experiment(Annotatable):
             logger.removeHandler(handler)
 
 
-class Trial(Generic[T], Experiment):
+class Trial(Experiment["DataclassInstance"], Generic[ConfigClass]):
     def __init__(
         self,
-        metadata: Optional[Metadata] = None,
+        metadata: Optional[Metadata["DataclassInstance"]] = None,
         /,
-        config: Optional[T] = None,
+        config: Optional[ConfigClass] = None,
         **kw,
     ):
         if metadata is not None:
@@ -466,7 +491,13 @@ class Trial(Generic[T], Experiment):
             super().__init__(configuration=config, **kw)
 
     @property
-    def config(self) -> T:
+    def config(self) -> ConfigClass:
+        if isinstance(self.metadata.configuration, dict):
+            msg = (
+                "`trial.config` is only available if the configuration was loaded with a configuration dataclass "
+                "(you could use `trial.metadata.configuration` instead)."
+            )
+            raise AttributeError(msg)
         return self.metadata.configuration
 
     def set_output_dir(self, path: Path):
@@ -479,12 +510,12 @@ class Trial(Generic[T], Experiment):
         logging.info("Config: %s", self.metadata.configuration)
 
 
-class Series(Generic[T], Experiment):
+class Series(Generic[ConfigClass], Experiment[SeriesConfiguration]):
     def __init__(
         self,
         metadata: Optional[Metadata] = None,
         /,
-        base_config: Optional[T] = None,
+        base_config: Optional[ConfigClass] = None,
         series_spec: Union[List[Dict], Dict[str, List], None] = None,
         series_skip: Optional[int] = None,
         **kw,
@@ -502,7 +533,7 @@ class Series(Generic[T], Experiment):
 
         self.validate_series_spec()
 
-        self.trials: Optional[List[Trial[T]]] = None
+        self.trials: Optional[List[Trial[ConfigClass]]] = None
         self.make_all_trials()
 
     def set_output_dir(self, path: Path):
@@ -534,7 +565,7 @@ class Series(Generic[T], Experiment):
             assert series_spec is None
 
     @property
-    def base_config(self) -> T:
+    def base_config(self) -> ConfigClass:
         return self.metadata.configuration["base_config"]
 
     @property
@@ -565,12 +596,10 @@ class Series(Generic[T], Experiment):
         # else: do nothing
 
     @overload
-    def get_changing_fields(self, sep: Literal[None] = None) -> Set[Tuple[Any, ...]]:
-        ...
+    def get_changing_fields(self, sep: Literal[None] = None) -> Set[Tuple[Any, ...]]: ...
 
     @overload
-    def get_changing_fields(self, sep: str) -> Set[str]:
-        ...
+    def get_changing_fields(self, sep: str) -> Set[str]: ...
 
     def get_changing_fields(self, sep: Optional[str] = None) -> Union[Set[Tuple[Any, ...]], Set[str]]:
         keys: Set = set()
@@ -663,11 +692,11 @@ class Series(Generic[T], Experiment):
 
                 nested_update(trial_config_data, trial_update)
 
-                trial_config: T
+                trial_config: ConfigClass
                 if isinstance(self.base_config, dict):
-                    trial_config = cast(T, trial_config_data)
+                    trial_config = trial_config_data
                 else:
-                    trial_config = cast(T, from_dict(type(self.base_config), trial_config_data))
+                    trial_config = from_dict(type(self.base_config), trial_config_data)
 
                 if i < self.series_skip:
                     status = "skipped"
@@ -680,7 +709,7 @@ class Series(Generic[T], Experiment):
     def __iter__(self):
         return self.get_all_trials(include_skipped=False)
 
-    def get_all_trials(self, *, include_skipped: bool = False) -> Generator[Trial[T], None, None]:
+    def get_all_trials(self, *, include_skipped: bool = False) -> Generator[Trial[ConfigClass], None, None]:
         assert self.trials is not None
 
         if not self.is_singular:

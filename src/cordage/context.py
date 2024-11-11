@@ -10,8 +10,8 @@ from docstring_parser import parse as parse_docstring
 
 from cordage.experiment import Experiment, Series, Trial
 from cordage.global_config import GlobalConfig
+from cordage.util import ConfigClass, logger, nest_items, nested_update, read_dict_from_file
 from cordage.util import from_dict as config_from_dict
-from cordage.util import logger, nest_items, nested_update, read_dict_from_file
 
 
 class MissingType:
@@ -105,7 +105,7 @@ class FunctionContext:
         func: Callable,  # expects a dataclass
         global_config: GlobalConfig,
         description: Optional[str] = None,
-        config_cls: Optional[Type] = None,
+        config_cls: Optional[Type[ConfigClass]] = None,
     ):
         self.global_config = global_config
         self.set_function(func)
@@ -208,6 +208,7 @@ class FunctionContext:
     def _add_argument_to_parser(self, arg_name: str, arg_type: Any, help: str, **kw):  # noqa: A002
         # If the field is also a dataclass, recurse (nested config)
         if dataclasses.is_dataclass(arg_type):
+            assert isinstance(arg_type, type)
             self.arg_group_config.add_argument(
                 f"--{arg_name}", type=Path, default=MISSING, help=help, metavar="PATH", **kw
             )
@@ -230,7 +231,7 @@ class FunctionContext:
             )
 
         elif get_origin(arg_type) is Union:
-            args = [arg for arg in get_args(arg_type) if arg != type(None)]
+            args = [arg for arg in get_args(arg_type) if arg is not type(None)]
 
             if len(args) == 1:
                 # optional
@@ -241,7 +242,7 @@ class FunctionContext:
                 raise TypeError(msg)
 
         # Boolean field
-        elif arg_type == bool:
+        elif arg_type is bool:
             # Create a true and a false flag -> the destination is identical
             self.arg_group_config.add_argument(
                 f"--{arg_name}", action="store_true", default=MISSING, help=help + " (set the value to True)", **kw

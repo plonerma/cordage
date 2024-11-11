@@ -68,7 +68,7 @@ def test_more_trial_series(global_config, resources_path, letter):
 
 
 def test_invalid_trial_series(global_config, resources_path):
-    def func(config: Config, cordage_trial: cordage.Trial):  # noqa: ARG001
+    def func(config: Config, cordage_trial: cordage.Trial):
         pass
 
     config_file = resources_path / "series_invalid.json"

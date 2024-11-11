@@ -58,7 +58,7 @@ def test_func_with_trial(global_config):
 
 
 def test_explicit_config_class(global_config):
-    def func(config):  # noqa: ARG001
+    def func(config):
         pass
 
     cordage.run(func, args=["--a", "1", "--b", "test"], global_config=global_config, config_cls=Config)

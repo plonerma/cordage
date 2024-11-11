@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 
 
 def test_manual_output_dir(global_config, tmp_path):
-    def func(config: SimpleConfig):  # noqa: ARG001
+    def func(config: SimpleConfig):
         pass
 
     experiment = cordage.run(
