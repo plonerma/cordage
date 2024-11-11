@@ -149,16 +149,14 @@ def write_dict_to_file(path: PathLike, data: Mapping[str, Any]):
 @overload
 def flattened_items(
     nested_dict: Dict[Any, Any], *, sep: Literal[None] = None, prefix: Tuple[Any, ...] = ()
-) -> Generator[Tuple[Tuple[Any, ...], Any], None, None]:
-    ...
+) -> Generator[Tuple[Tuple[Any, ...], Any], None, None]: ...
 
 
 # spearator given
 @overload
 def flattened_items(
     nested_dict: Dict[Any, Any], *, sep: str, prefix: Tuple[str, ...] = ()
-) -> Generator[Tuple[str, Any], None, None]:
-    ...
+) -> Generator[Tuple[str, Any], None, None]: ...
 
 
 def flattened_items(

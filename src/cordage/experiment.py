@@ -565,12 +565,10 @@ class Series(Generic[T], Experiment):
         # else: do nothing
 
     @overload
-    def get_changing_fields(self, sep: Literal[None] = None) -> Set[Tuple[Any, ...]]:
-        ...
+    def get_changing_fields(self, sep: Literal[None] = None) -> Set[Tuple[Any, ...]]: ...
 
     @overload
-    def get_changing_fields(self, sep: str) -> Set[str]:
-        ...
+    def get_changing_fields(self, sep: str) -> Set[str]: ...
 
     def get_changing_fields(self, sep: Optional[str] = None) -> Union[Set[Tuple[Any, ...]], Set[str]]:
         keys: Set = set()
