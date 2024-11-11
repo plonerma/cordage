@@ -50,7 +50,7 @@ def test_trial_id_collision(global_config):
 
 @pytest.mark.timeout(1)
 def test_function_context_from_configuration(global_config):
-    def func(config: SimpleConfig):  # noqa: ARG001
+    def func(config: SimpleConfig):
         pass
 
     context = FunctionContext(func, global_config=global_config)
@@ -68,7 +68,7 @@ def test_function_context_from_configuration(global_config):
 
 @pytest.mark.timeout(1)
 def test_output_dir_path_correction(monkeypatch, tmp_path):
-    def func(config: SimpleConfig):  # noqa: ARG001
+    def func(config: SimpleConfig):
         pass
 
     run_dir = tmp_path / "run"
@@ -92,7 +92,7 @@ def test_output_dir_path_correction(monkeypatch, tmp_path):
 
 
 def test_config_only(global_config):
-    def func(config: SimpleConfig):  # noqa: ARG001
+    def func(config: SimpleConfig):
         pass
 
     cordage.run(func, args=[], global_config=global_config, config_only=True)
@@ -102,7 +102,7 @@ def test_config_only(global_config):
 
 
 def test_config_only_func_params(global_config):
-    def func(config: SimpleConfig, output_dir):  # noqa: ARG001
+    def func(config: SimpleConfig, output_dir):
         pass
 
     with pytest.raises(TypeError):

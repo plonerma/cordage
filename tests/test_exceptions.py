@@ -36,7 +36,7 @@ def test_exception_logging(global_config):
 
 
 def test_function_without_annotation():
-    def func(config):  # noqa: ARG001
+    def func(config):
         pass
 
     with pytest.raises(TypeError) as e_info:
@@ -56,7 +56,7 @@ def test_function_without_config_parameter():
 
 
 def test_function_invalid_object_to_execute(global_config):
-    def func(config: Config):  # noqa: ARG001
+    def func(config: Config):
         pass
 
     context = cordage.FunctionContext(func, global_config=global_config)

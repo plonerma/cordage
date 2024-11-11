@@ -107,7 +107,7 @@ def test_config_annotation_comment(global_config, resources_path):
 
 
 def test_function_name_saving(global_config, resources_path):
-    def func(config: Config):  # noqa: ARG001
+    def func(config: Config):
         pass
 
     conf_path = resources_path / "annotation.yaml"

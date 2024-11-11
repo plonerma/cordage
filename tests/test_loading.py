@@ -10,7 +10,7 @@ from cordage.util import logger
 
 @pytest.mark.timeout(1)
 def test_metadata_loading_config_class_casting(global_config):
-    def func(config: SimpleConfig):  # noqa: ARG001
+    def func(config: SimpleConfig):
         pass
 
     trial = cordage.run(func, args=["--a", "1", "--b", "2"], global_config=global_config)

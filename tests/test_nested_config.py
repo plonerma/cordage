@@ -93,7 +93,7 @@ def test_mixed_nested_loading(global_config, resources_path):
 
 
 def test_additional_keys_exception(global_config, resources_path):
-    def func(config: NestedConfig):  # noqa: ARG001
+    def func(config: NestedConfig):
         pass
 
     with pytest.raises(cordage.exceptions.CordageError):
