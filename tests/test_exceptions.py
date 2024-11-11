@@ -68,12 +68,12 @@ def test_function_invalid_object_to_execute(global_config):
 
 
 def test_multiple_runtime_exceptions(global_config):
-    metadata: cordage.Metadata = cordage.Metadata(function="no_function", global_config=global_config)
+    metadata: cordage.Metadata = cordage.Metadata(function="no_function", global_config=global_config, configuration={})
 
     with pytest.raises(TypeError):
         exp = cordage.Experiment(metadata, global_config=global_config)
 
-    exp = cordage.Experiment(function="no_function", global_config=global_config)
+    exp = cordage.Experiment(function="no_function", global_config=global_config, configuration={})
 
     with pytest.raises(RuntimeError):
         log.info(str(exp.output_dir))

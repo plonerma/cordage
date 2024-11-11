@@ -1,13 +1,17 @@
 import dataclasses
 import json
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 from cordage import GlobalConfig
 from cordage.util import to_dict
 
 
-def test_global_config(global_config):
+def test_global_config(global_config: "DataclassInstance"):
     assert dataclasses.is_dataclass(global_config)
 
     json.dumps(to_dict(global_config))

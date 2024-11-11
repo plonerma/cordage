@@ -1,5 +1,6 @@
 import dataclasses
 import logging
+import typing
 from datetime import datetime, timedelta
 from os import PathLike
 from pathlib import Path
@@ -24,12 +25,15 @@ from typing import (
 import dacite
 import dacite.exceptions
 
+if typing.TYPE_CHECKING:
+    from _typeshed import DataclassInstance
+
 import cordage.exceptions
 
 logger = logging.getLogger("cordage")
 
-T = TypeVar("T")
 
+ConfigClass = TypeVar("ConfigClass", bound="DataclassInstance")
 
 serialization_map: Dict[Type[Any], Callable[..., Any]] = {
     Path: str,
@@ -230,7 +234,7 @@ def nest_items(flat_items: Iterable[Tuple[Union[str, Tuple[Any, ...]], Any]]) ->
     return nested_dict
 
 
-def from_dict(data_class: Type[T], data: Mapping, *, strict: bool = True) -> T:
+def from_dict(data_class: Type[ConfigClass], data: Mapping, *, strict: bool = True) -> ConfigClass:
     config = dacite.Config(cast=types_to_cast, type_hooks=deserialization_map, strict=strict)
     try:
         return dacite.from_dict(data_class, data, config)
@@ -253,7 +257,7 @@ def from_dict(data_class: Type[T], data: Mapping, *, strict: bool = True) -> T:
         raise cordage.exceptions.CordageError(msg) from e
 
 
-def from_file(config_cls: Type[T], path: PathLike, **kwargs) -> T:
+def from_file(config_cls: Type[ConfigClass], path: PathLike, **kwargs) -> ConfigClass:
     data: Mapping = read_dict_from_file(path)
     return from_dict(config_cls, data, **kwargs)
 
@@ -297,7 +301,7 @@ def set_nested_field(dataclass_instance, field_name: str, value: Any):
     setattr(obj, last_key, value)
 
 
-def to_dict(data: Any) -> dict:
+def to_dict(data: Union[ConfigClass, Mapping]) -> dict:
     """Represent the fields and values of configuration as a (nested) dict."""
     mapping: Mapping
 

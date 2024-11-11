@@ -22,9 +22,11 @@ def test_metadata_loading_config_class_casting(global_config):
     # try loading as dict
     experiment = Experiment.from_path(metadata_path)
     assert isinstance(experiment, Trial)
-    assert isinstance(experiment.config, dict)
-    assert experiment.config["a"] == 1
-    assert experiment.config["b"] == "2"
+    with pytest.raises(AttributeError):
+        assert isinstance(experiment.config, dict)
+    assert isinstance(experiment.metadata.configuration, dict)
+    assert experiment.metadata.configuration["a"] == 1
+    assert experiment.metadata.configuration["b"] == "2"
 
     # try loading with config class
     experiment = Experiment.from_path(metadata_path, config_cls=SimpleConfig)
@@ -69,7 +71,12 @@ def test_trial_series_loading(global_config, resources_path, capsys):
 
     # after loading the series trials, the configs are merely nested dictionaries
     for i, trial in enumerate(trial_store):
-        assert trial.config["alpha"]["b"] == f"b{i+1}"
+        with pytest.raises(AttributeError):
+            assert isinstance(trial.config, dict)
+
+        config = trial.metadata.configuration
+
+        assert config["alpha"]["b"] == f"b{i+1}"
         assert trial.has_tag(f"b{i+1}")
 
         assert isinstance(trial.metadata.start_time, datetime)
