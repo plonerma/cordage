@@ -271,6 +271,9 @@ class FunctionContext:
 
         # Iterate over all fields in the dataclass to add arguments to the parser
         for field in dataclasses.fields(config_cls):
+            if prefix is None and field.name == self.global_config.param_name_output_dir:
+                continue
+
             # Set prefixed argument name
             if prefix is not None:
                 arg_name = f"{prefix}.{field.name}"

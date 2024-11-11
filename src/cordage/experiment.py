@@ -39,7 +39,7 @@ except ImportError:
     colorlog = None  # type: ignore
 
 from cordage.global_config import GlobalConfig
-from cordage.util import flattened_items, from_dict, logger, nest_items, nested_update, to_dict
+from cordage.util import config_output_dir_type, flattened_items, from_dict, logger, nest_items, nested_update, to_dict
 
 T = TypeVar("T")
 
@@ -119,9 +119,13 @@ class MetadataStore:
     def parent_dir(self) -> Optional[Path]:
         return self.metadata.parent_dir
 
+    def set_output_dir(self, path: Path):
+        self.metadata.output_dir = path
+
     def create_output_dir(self):
         if self.metadata.output_dir is not None:
             self.output_dir.mkdir(parents=True, exist_ok=True)
+            self.set_output_dir(self.output_dir)
             return self.output_dir
 
         tried_paths: Set[Path] = set()
@@ -144,14 +148,14 @@ class MetadataStore:
 
             try:
                 path.mkdir(parents=True, exist_ok=False)
-                self.metadata.output_dir = path
+                self.set_output_dir(path)
                 return path
             except FileExistsError:
                 if self.global_config.overwrite_existing:
                     logger.warning("Path %s does existing. Replacing directory with new one.", str(path))
                     shutil.rmtree(path)
                     path.mkdir(parents=True)
-                    self.metadata.output_dir = path
+                    self.set_output_dir(path)
                     return path
                 else:
                     tried_paths.add(path)
@@ -462,8 +466,17 @@ class Trial(Generic[T], Experiment):
             super().__init__(configuration=config, **kw)
 
     @property
-    def config(self):
+    def config(self) -> T:
         return self.metadata.configuration
+
+    def set_output_dir(self, path: Path):
+        super().set_output_dir(path)
+
+        output_dir_type = config_output_dir_type(self.config, self.global_config.param_name_output_dir)
+        if output_dir_type is not None:
+            self.config.output_dir = output_dir_type(path)  # type: ignore
+
+        logging.info("Config: %s", self.metadata.configuration)
 
 
 class Series(Generic[T], Experiment):
@@ -491,6 +504,12 @@ class Series(Generic[T], Experiment):
 
         self.trials: Optional[List[Trial[T]]] = None
         self.make_all_trials()
+
+    def set_output_dir(self, path: Path):
+        super().set_output_dir(path)
+        output_dir_type = config_output_dir_type(self.base_config, self.global_config.param_name_output_dir)
+        if output_dir_type is not None:
+            self.base_config.output_dir = output_dir_type(path)  # type: ignore
 
     def validate_series_spec(self):
         series_spec = self.series_spec
@@ -622,8 +641,8 @@ class Series(Generic[T], Experiment):
             single_trial = self.make_trial(configuration=self.base_config)
             single_trial.annotations = self.annotations
 
-            if self.metadata.output_dir:
-                single_trial.metadata.output_dir = self.metadata.output_dir
+            if self.metadata.output_dir is not None:
+                single_trial.set_output_dir(self.metadata.output_dir)
 
             self.trials = [single_trial]
 

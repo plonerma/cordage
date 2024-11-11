@@ -314,3 +314,16 @@ def to_dict(data: Any) -> dict:
 def to_file(dataclass_instance, path: PathLike):
     """Write config to json, toml, or yaml file."""
     return write_dict_to_file(path, to_dict(dataclass_instance))
+
+
+def config_output_dir_type(config_cls: Any, param_name_output_dir) -> Union[Type[str], Type[Path], None]:
+    for field in dataclasses.fields(config_cls):
+        if field.name == param_name_output_dir:
+            if field.type in (str, "str"):
+                return str
+            elif field.type in (Path, "Path"):
+                return Path
+            else:
+                msg = f"You must annotate `output_dir` as str or Path: got {field.type}."
+                raise TypeError(msg)
+    return None
