@@ -1,6 +1,6 @@
 <div align="center">
 
-# Cordage: COmputational Research Data manAGEment
+# Cordage: *Co*mputational *R*esearch *D*ata Man*age*ment
    
 *Parameterize experiments using dataclasses and use cordage to easily parse configuration files and command line
 options.*
