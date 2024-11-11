@@ -1,8 +1,11 @@
-![Cordage Icon](https://raw.githubusercontent.com/plonerma/cordage/main/docs/assets/icon.svg)
+<div align="center">
 
+# Cordage: COmputational Research Data manAGEment
+   
+*Parameterize experiments using dataclasses and use cordage to easily parse configuration files and command line
+options.*
 
-# Cordage: Computational Research Data Management
-
+---
 
 [![Build status](https://img.shields.io/github/actions/workflow/status/plonerma/cordage/tests.yml?logo=github&label=Tests)](https://github.com/plonerma/cordage/actions)
 [![PyPI - Version](https://img.shields.io/pypi/v/cordage.svg?logo=pypi&label=Version&logoColor=gold)](https://pypi.org/project/cordage/)
@@ -10,13 +13,22 @@
 [![PyPI - License](https://img.shields.io/pypi/l/cordage?logo=pypi&logoColor=gold)](https://github.com/plonerma/cordage/blob/main/LICENSE)
 [![Code style: black](https://img.shields.io/badge/Code%20style-black-000000.svg)](https://github.com/psf/black)
 
-Parameterize experiments using dataclasses and use cordage to easily parse configuration files and command line
-options.
+    
+![Cordage Icon](https://raw.githubusercontent.com/plonerma/cordage/main/docs/assets/icon.svg)
 
-> [!IMPORTANT]  
-> Cordage is in a very early stage. Currently, it lacks a lot of documentation and wider range
-> of features. If you think it could be useful for you, try it out and leave suggestions, complains, and improvemnt ideas
-> as [github issues](https://github.com/plonerma/cordage/issues).
+[Repository](https://github.com/plonerma/cordage) | [Documentation](https://plonerma.github.io/cordage/) | [Package](https://pypi.org/project/cordage/)
+
+</div>
+
+---
+
+*Cordage is in a very early stage. Currently, it lacks a lot of documentation and wider range
+of features. If you think it could be useful for you, try it out and leave suggestions, complains, and improvemnt ideas
+as [github issues](https://github.com/plonerma/cordage/issues).*
+
+*Check out the [roadmap](https://github.com/plonerma/cordage/wiki/Roadmap) for an outline of the next steps that are planned for the development of this package.*
+
+---
 
 
 ## Motivation
