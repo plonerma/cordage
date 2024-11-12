@@ -1,7 +1,7 @@
 [project]
 name = "cordage"
 dynamic = ["version"]
-description = 'Small framework for computational research data management'
+description = " Computational research data management tool"
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
@@ -10,7 +10,7 @@ authors = [
   { name = "Max Ploner", email = "cordage@maxploner.de" },
 ]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 3 - Alpha",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
@@ -20,9 +20,9 @@ classifiers = [
   "Operating System :: OS Independent",
 ]
 dependencies = [
-  'docstring_parser',
-  'colorlog',
-  'dacite',
+  "docstring_parser",
+  "colorlog",
+  "dacite",
 ]
 
 [project.urls]
@@ -37,6 +37,9 @@ toml = [
 yaml = [
   "pyyaml",
 ]
+
+
+# === BUILD SYSTEM & TOOLING ===
 
 [build-system]
 requires = ["hatchling"]
@@ -92,6 +95,9 @@ all = [
   "style",
   "typing",
 ]
+
+
+# --- LINTING ---
 
 [tool.ruff]
 target-version = "py38"
@@ -152,6 +158,16 @@ ban-relative-imports = "all"
 # Tests can use magic values, assertions, and relative imports
 "tests/**/*" = ["PLR2004", "S101", "TID252"]
 
+
+# --- TYPE CHECKING ---
+
+[tool.mypy]
+ignore_missing_imports = true
+check_untyped_defs = true
+
+
+# --- TEST COVERAGE ---
+
 [tool.coverage.run]
 source_pkgs = ["cordage", "tests"]
 branch = true
@@ -170,7 +186,3 @@ exclude_lines = [
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
 ]
-
-[tool.mypy]
-ignore_missing_imports = true
-check_untyped_defs = true
