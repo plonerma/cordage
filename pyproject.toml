@@ -85,6 +85,7 @@ dependencies = [
 [tool.hatch.envs.lint.scripts]
 typing = "mypy --install-types --non-interactive {args:src/cordage tests}"
 style = [
+  "ruff format --check {args:.}",
   "ruff check {args:.}",
 ]
 fmt = [
@@ -143,6 +144,8 @@ ignore = [
   "S101",
   # Ignore complexity
   "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
+  # Apparently causes issues when used with the formatter
+  "ISC001",
 ]
 unfixable = [
   # Don't touch unused imports
