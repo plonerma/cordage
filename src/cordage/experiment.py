@@ -112,7 +112,11 @@ class MetadataStore(Generic[Configuration]):
     _warned_deprecated_nested_global_config: bool = False
 
     def __init__(
-        self, metadata: Optional[Metadata[Configuration]] = None, /, global_config: Optional[GlobalConfig] = None, **kw
+        self,
+        metadata: Optional[Metadata[Configuration]] = None,
+        /,
+        global_config: Optional[GlobalConfig] = None,
+        **kw,
     ):
         self.metadata: Metadata
 
@@ -161,13 +165,17 @@ class MetadataStore(Generic[Configuration]):
                 level = floor(log10(i) / 2) + 1
                 suffix = "_" * level + str(i).zfill(2 * level)
 
-            path = self.global_config.base_output_dir / self.global_config.output_dir_format.format(
-                **self.metadata.__dict__,
-                collision_suffix=suffix,
+            path = (
+                self.global_config.base_output_dir
+                / self.global_config.output_dir_format.format(
+                    **self.metadata.__dict__,
+                    collision_suffix=suffix,
+                )
             )
 
             if path in tried_paths:
-                # suffix was already tried: assume that further tries wont resolve this collision
+                # suffix was already tried: assume that further tries
+                # wont resolve this collision
                 msg = f"Path {path} does already exist - collision could not be avoided."
                 raise RuntimeError(msg)
 
@@ -177,7 +185,9 @@ class MetadataStore(Generic[Configuration]):
                 return path
             except FileExistsError:
                 if self.global_config.overwrite_existing:
-                    logger.warning("Path %s does existing. Replacing directory with new one.", str(path))
+                    logger.warning(
+                        "Path %s does existing. Replacing directory with new one.", str(path)
+                    )
                     shutil.rmtree(path)
                     path.mkdir(parents=True)
                     self.set_output_dir(path)
@@ -343,7 +353,10 @@ class Experiment(Annotatable[Configuration]):
         traceback_string = "".join(format_exception(exc_type, value=exc_value, tb=traceback))
 
         logger.exception("", exc_info=(exc_type, exc_value, traceback))
-        self.metadata.additional_info["exception"] = {"short": repr(exc_value), "traceback": traceback_string}
+        self.metadata.additional_info["exception"] = {
+            "short": repr(exc_value),
+            "traceback": traceback_string,
+        }
 
     def __enter__(self):
         self.start()
@@ -373,7 +386,9 @@ class Experiment(Annotatable[Configuration]):
             metadata = self.load_metadata(self.metadata.output_dir)
 
             if not isinstance(self.metadata.configuration, dict):
-                metadata.configuration = from_dict(type(self.metadata.configuration), metadata.configuration)
+                metadata.configuration = from_dict(
+                    type(self.metadata.configuration), metadata.configuration
+                )
 
             self.metadata = metadata
 
@@ -396,7 +411,9 @@ class Experiment(Annotatable[Configuration]):
 
         else:
             if config_cls is not None:
-                metadata.configuration["base_config"] = from_dict(config_cls, metadata.configuration["base_config"])
+                metadata.configuration["base_config"] = from_dict(
+                    config_cls, metadata.configuration["base_config"]
+                )
 
             experiment = Series(metadata)
 
@@ -405,7 +422,9 @@ class Experiment(Annotatable[Configuration]):
         return experiment
 
     @classmethod
-    def all_from_path(cls, results_path: Union[str, PathLike], *, skip_hidden: bool = True) -> List["Experiment"]:
+    def all_from_path(
+        cls, results_path: Union[str, PathLike], *, skip_hidden: bool = True
+    ) -> List["Experiment"]:
         """Load all experiments from the results_path."""
         results_path = Path(results_path)
 
@@ -413,7 +432,9 @@ class Experiment(Annotatable[Configuration]):
         experiments = []
 
         for p in results_path.rglob("*/cordage.json"):
-            if skip_hidden and any(part.startswith(".") for part in (p.relative_to(results_path)).parts):
+            if skip_hidden and any(
+                part.startswith(".") for part in (p.relative_to(results_path)).parts
+            ):
                 continue
 
             path = p.parent
@@ -448,7 +469,11 @@ class Experiment(Annotatable[Configuration]):
 
             if colorlog is not None:
                 handler = colorlog.StreamHandler()
-                handler.setFormatter(colorlog.ColoredFormatter(f"%(log_color)s%(levelname)-8s%(reset)s {format_str}"))
+                handler.setFormatter(
+                    colorlog.ColoredFormatter(
+                        f"%(log_color)s%(levelname)-8s%(reset)s {format_str}"
+                    )
+                )
             else:
                 handler = logging.StreamHandler()
                 handler.setFormatter(logging.Formatter(f"%(levelname)-8s {format_str}"))
@@ -458,7 +483,9 @@ class Experiment(Annotatable[Configuration]):
 
         if self.global_config.logging_to_file:
             # setup logging to local output_dir
-            formatter = logging.Formatter("%(asctime)s %(levelname)-8s %(name)s:%(filename)s:%(lineno)d - %(message)s")
+            formatter = logging.Formatter(
+                "%(asctime)s %(levelname)-8s %(name)s:%(filename)s:%(lineno)d - %(message)s"
+            )
             handler = logging.FileHandler(self.log_path)
             handler.setFormatter(formatter)
 
@@ -494,8 +521,8 @@ class Trial(Experiment["DataclassInstance"], Generic[ConfigClass]):
     def config(self) -> ConfigClass:
         if isinstance(self.metadata.configuration, dict):
             msg = (
-                "`trial.config` is only available if the configuration was loaded with a configuration dataclass "
-                "(you could use `trial.metadata.configuration` instead)."
+                "`trial.config` is only available if the configuration was loaded with a "
+                "configuration dataclass (you could use `trial.metadata.configuration` instead)."
             )
             raise AttributeError(msg)
         return self.metadata.configuration
@@ -503,7 +530,9 @@ class Trial(Experiment["DataclassInstance"], Generic[ConfigClass]):
     def set_output_dir(self, path: Path):
         super().set_output_dir(path)
 
-        output_dir_type = config_output_dir_type(self.config, self.global_config.param_name_output_dir)
+        output_dir_type = config_output_dir_type(
+            self.config, self.global_config.param_name_output_dir
+        )
         if output_dir_type is not None:
             self.config.output_dir = output_dir_type(path)  # type: ignore
 
@@ -525,10 +554,18 @@ class Series(Generic[ConfigClass], Experiment[SeriesConfiguration]):
             super().__init__(metadata)
         else:
             if isinstance(series_spec, list):
-                series_spec = [nest_items(flattened_items(trial_update, sep=".")) for trial_update in series_spec]
+                series_spec = [
+                    nest_items(flattened_items(trial_update, sep="."))
+                    for trial_update in series_spec
+                ]
 
             super().__init__(
-                configuration={"base_config": base_config, "series_spec": series_spec, "series_skip": series_skip}, **kw
+                configuration={
+                    "base_config": base_config,
+                    "series_spec": series_spec,
+                    "series_skip": series_skip,
+                },
+                **kw,
             )
 
         self.validate_series_spec()
@@ -538,7 +575,9 @@ class Series(Generic[ConfigClass], Experiment[SeriesConfiguration]):
 
     def set_output_dir(self, path: Path):
         super().set_output_dir(path)
-        output_dir_type = config_output_dir_type(self.base_config, self.global_config.param_name_output_dir)
+        output_dir_type = config_output_dir_type(
+            self.base_config, self.global_config.param_name_output_dir
+        )
         if output_dir_type is not None:
             self.base_config.output_dir = output_dir_type(path)  # type: ignore
 
@@ -601,7 +640,9 @@ class Series(Generic[ConfigClass], Experiment[SeriesConfiguration]):
     @overload
     def get_changing_fields(self, sep: str) -> Set[str]: ...
 
-    def get_changing_fields(self, sep: Optional[str] = None) -> Union[Set[Tuple[Any, ...]], Set[str]]:
+    def get_changing_fields(
+        self, sep: Optional[str] = None
+    ) -> Union[Set[Tuple[Any, ...]], Set[str]]:
         keys: Set = set()
 
         if isinstance(self.series_spec, list):
@@ -628,17 +669,19 @@ class Series(Generic[ConfigClass], Experiment[SeriesConfiguration]):
 
     def __len__(self):
         if isinstance(self.series_spec, list):
-            assert self.trials is None or len(self.trials) == len(
-                self.series_spec
-            ), f"Number of existing ({len(self.trials)}) and expected trials ({len(self.series_spec)}) do not match."
+            assert self.trials is None or len(self.trials) == len(self.series_spec), (
+                f"Number of existing ({len(self.trials)}) and expected trials "
+                f"({len(self.series_spec)}) do not match."
+            )
             return len(self.series_spec)
         elif isinstance(self.series_spec, dict):
             num_trials = 1
             for _, values in flattened_items(self.series_spec):
                 num_trials *= len(values)
-            assert (
-                self.trials is None or len(self.trials) == num_trials
-            ), f"Number of existing ({len(self.trials)}) and expected trials ({num_trials}) do not match."
+            assert self.trials is None or len(self.trials) == num_trials, (
+                f"Number of existing ({len(self.trials)}) and expected trials ({num_trials}) do "
+                "not match."
+            )
             return num_trials
         else:
             return 1
@@ -676,7 +719,10 @@ class Series(Generic[ConfigClass], Experiment[SeriesConfiguration]):
             self.trials = [single_trial]
 
         else:
-            logger.debug("The given configuration yields an experiment series with %d experiments.", len(self))
+            logger.debug(
+                "The given configuration yields an experiment series with %d experiments.",
+                len(self),
+            )
             self.trials = []
 
             for i, trial_update in enumerate(self.get_trial_updates()):
@@ -703,13 +749,17 @@ class Series(Generic[ConfigClass], Experiment[SeriesConfiguration]):
                 else:
                     status = "pending"
 
-                trial = self.make_trial(configuration=trial_config, additional_info={"trial_index": i}, status=status)
+                trial = self.make_trial(
+                    configuration=trial_config, additional_info={"trial_index": i}, status=status
+                )
                 self.trials.append(trial)
 
     def __iter__(self):
         return self.get_all_trials(include_skipped=False)
 
-    def get_all_trials(self, *, include_skipped: bool = False) -> Generator[Trial[ConfigClass], None, None]:
+    def get_all_trials(
+        self, *, include_skipped: bool = False
+    ) -> Generator[Trial[ConfigClass], None, None]:
         assert self.trials is not None
 
         if not self.is_singular:

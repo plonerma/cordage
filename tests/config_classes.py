@@ -34,7 +34,8 @@ class NestedConfig:
 
     a: str = "e_default"
 
-    # these fields are used in test_more_trial_series for checking the configuration and output dir etc.
+    # these fields are used in test_more_trial_series for checking the
+    # configuration and output dir etc.
     alphas: int = 1
     betas: int = 1
 

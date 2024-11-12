@@ -48,7 +48,9 @@ def test_nested_series_logging(global_config, capsys, resources_path):
 
         log.warning("before_inner_trial")
 
-        inner_series = cordage.run(foo, args=[str(resources_path / "series_simple.yaml")], global_config=global_config)
+        inner_series = cordage.run(
+            foo, args=[str(resources_path / "series_simple.yaml")], global_config=global_config
+        )
 
         log.warning("after_inner_trial")
 

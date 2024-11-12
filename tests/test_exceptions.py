@@ -9,7 +9,8 @@ log = logging.getLogger(__name__)
 
 
 def test_exception_logging(global_config):
-    """If an (uncaught) exception is thrown in the experiment, it should be logged and noted in the metadata."""
+    """If an (uncaught) exception is thrown in the experiment, it should
+    be logged and noted in the metadata."""
 
     class SomeSpecificError(RuntimeError):
         pass
@@ -68,7 +69,9 @@ def test_function_invalid_object_to_execute(global_config):
 
 
 def test_multiple_runtime_exceptions(global_config):
-    metadata: cordage.Metadata = cordage.Metadata(function="no_function", global_config=global_config, configuration={})
+    metadata: cordage.Metadata = cordage.Metadata(
+        function="no_function", global_config=global_config, configuration={}
+    )
 
     with pytest.raises(TypeError):
         exp = cordage.Experiment(metadata, global_config=global_config)
