@@ -53,7 +53,15 @@ def test_nested_config_overwrite(global_config, resources_path):
 
     cordage.run(
         func,
-        args=[str(config_file), "--data.name", "mnist", "--data.version", "1", "--hyper_params.learning_rate", "2"],
+        args=[
+            str(config_file),
+            "--data.name",
+            "mnist",
+            "--data.version",
+            "1",
+            "--hyper_params.learning_rate",
+            "2",
+        ],
         global_config=global_config,
     )
 
@@ -97,8 +105,12 @@ def test_additional_keys_exception(global_config, resources_path):
         pass
 
     with pytest.raises(cordage.exceptions.CordageError):
-        cordage.run(func, args=[str(resources_path / "nested_add_key.json")], global_config=global_config)
+        cordage.run(
+            func, args=[str(resources_path / "nested_add_key.json")], global_config=global_config
+        )
 
     # with strict mode off, this should not raise an exception
     global_config.strict_mode = False
-    cordage.run(func, args=[str(resources_path / "nested_add_key.json")], global_config=global_config)
+    cordage.run(
+        func, args=[str(resources_path / "nested_add_key.json")], global_config=global_config
+    )

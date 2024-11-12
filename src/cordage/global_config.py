@@ -37,7 +37,8 @@ class GlobalConfig:
     logging_to_file: bool = True
     logging_filename: str = "cordage.log"
 
-    # Determines the names of the parameters in the function to be called by cordage.
+    # Determines the names of the parameters in the function to be
+    # called by cordage.
     param_name_config: str = "config"
     param_name_output_dir: str = "output_dir"
     param_name_trial_object: str = "cordage_trial"
@@ -86,7 +87,10 @@ class GlobalConfig:
 
             # 1. Check if a project specific configuration file exists
             if cls.PROJECT_SPECIFIC_CONFIG_PATH.exists():
-                logger.debug("Loading project specific global config (%s).", cls.PROJECT_SPECIFIC_CONFIG_PATH)
+                logger.debug(
+                    "Loading project specific global config (%s).",
+                    cls.PROJECT_SPECIFIC_CONFIG_PATH,
+                )
                 return config_from_file(cls, cls.PROJECT_SPECIFIC_CONFIG_PATH)
 
             # 2. Check if a global configuration file exists
@@ -97,8 +101,8 @@ class GlobalConfig:
             # 3. Use the default values
             else:
                 logger.info(
-                    "No cordage configuration given. Using default values. Use a project specific (%s) or global"
-                    "configuration (%s) to change the behavior.",
+                    "No cordage configuration given. Using default values. Use a project specific "
+                    "(%s) or global configuration (%s) to change the behavior.",
                     cls.PROJECT_SPECIFIC_CONFIG_PATH,
                     cls.GLOBAL_CONFIG_PATH,
                 )

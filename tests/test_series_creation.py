@@ -48,7 +48,9 @@ def test_more_trial_series(global_config, resources_path, letter):
 
     config_file = resources_path / f"series_{letter}.toml"
 
-    cordage.run(func, args=[str(config_file), "--alpha.b", "b_incorrect"], global_config=global_config)
+    cordage.run(
+        func, args=[str(config_file), "--alpha.b", "b_incorrect"], global_config=global_config
+    )
 
     assert len(trial_store) == trial_store[0].config.alphas * trial_store[0].config.betas
 
@@ -76,9 +78,10 @@ def test_invalid_trial_series(global_config, resources_path):
     with pytest.raises(ValueError):
         cordage.run(func, args=[str(config_file)], global_config=global_config)
 
-    assert (
-        not global_config.base_output_dir.exists()
-    ), "Since the configuration is invalid, the series should not be started and hence no output be created"
+    assert not global_config.base_output_dir.exists(), (
+        "Since the configuration is invalid, the series should not be started and hence no output "
+        "be created."
+    )
 
 
 def test_trial_skipping(global_config, resources_path):

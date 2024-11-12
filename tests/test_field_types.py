@@ -30,7 +30,9 @@ def test_loading(global_config, resources_path):
 
     config_file = resources_path / "simple_a.toml"
 
-    cordage.run(func, args=[str(config_file), "--c", "some_other_value"], global_config=global_config)
+    cordage.run(
+        func, args=[str(config_file), "--c", "some_other_value"], global_config=global_config
+    )
 
 
 def test_literal_fields(global_config, resources_path):

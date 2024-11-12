@@ -13,7 +13,9 @@ def test_manual_output_dir(global_config, tmp_path):
         pass
 
     experiment = cordage.run(
-        func, args=["--output-dir", str(tmp_path / "some_specific_output_dir")], global_config=global_config
+        func,
+        args=["--output-dir", str(tmp_path / "some_specific_output_dir")],
+        global_config=global_config,
     )
 
     assert experiment.output_dir == tmp_path / "some_specific_output_dir"
@@ -28,7 +30,11 @@ def test_manual_output_dir_for_series(global_config, tmp_path, resources_path):
 
     cordage.run(
         func,
-        args=["--output-dir", str(tmp_path / "some_specific_output_dir"), str(resources_path / "series_simple.yaml")],
+        args=[
+            "--output-dir",
+            str(tmp_path / "some_specific_output_dir"),
+            str(resources_path / "series_simple.yaml"),
+        ],
         global_config=global_config,
     )
 
@@ -72,7 +78,9 @@ def test_explicit_description(capfd, global_config):
         raise RuntimeError(msg)
 
     with pytest.raises(SystemExit):
-        cordage.run(func, args=["--help"], global_config=global_config, description="EXPLICIT_DESCRIPTION")
+        cordage.run(
+            func, args=["--help"], global_config=global_config, description="EXPLICIT_DESCRIPTION"
+        )
 
     out, _ = capfd.readouterr()
 

@@ -16,7 +16,11 @@ def test_trial_series_list(global_config, resources_path):
     series_path = global_config.base_output_dir / "nested" / "structure" / "experiment"
 
     def load_filtered(status=(), tag=()):
-        return [exp for exp in Experiment.all_from_path(series_path) if exp.has_status(*status) and exp.has_tag(*tag)]
+        return [
+            exp
+            for exp in Experiment.all_from_path(series_path)
+            if exp.has_status(*status) and exp.has_tag(*tag)
+        ]
 
     def func(config: Config, cordage_trial: cordage.Trial):
         if config.alpha.a == 1:
@@ -54,7 +58,8 @@ def test_trial_series_list(global_config, resources_path):
     assert len(load_filtered(tag=["not_the_first", "the_first"], status=["complete"])) == 2
     assert len(load_filtered(tag=["not_the_first"], status=["complete"])) == 1
 
-    # Since we only load top level experiments, only the series should show up
+    # Since we only load top level experiments, only the series should
+    # show up
     assert len(Experiment.all_from_path(global_config.base_output_dir)) == 1
 
 
@@ -84,7 +89,9 @@ def test_annotation_comment_addition(global_config, resources_path):
 
     conf_path = resources_path / "annotation.yaml"
 
-    cordage.run(func, args=["--cordage-comment", test_comment, str(conf_path)], global_config=global_config)
+    cordage.run(
+        func, args=["--cordage-comment", test_comment, str(conf_path)], global_config=global_config
+    )
 
     exp = Experiment.from_path(global_config.base_output_dir / "experiment")
     assert exp.comment == expected_comment

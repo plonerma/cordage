@@ -50,7 +50,8 @@ types_to_cast: List[Type[Any]] = [Path, float, bool, int, str, tuple]
 
 
 def get_loader(extension: str) -> Callable:
-    """Load relevant module for reading a file with the given extension."""
+    """Load relevant module for reading a file with the given extension.
+    """
     msg = f"Unrecognized file format: '.{extension}' (supported are .toml, .yaml, and .json)."
     if extension not in ("toml", "yaml", "yml", "yl", "json"):
         raise RuntimeError(msg)
@@ -100,7 +101,8 @@ def read_dict_from_file(path: PathLike) -> Dict[str, Any]:
 
 
 def get_writer(extension: str) -> Callable:
-    """Load relevant module for reading a file with the given extension."""
+    """Load relevant module for reading a file with the given extension.
+    """
     if extension not in ("toml", "yaml", "yml", "yl", "json"):
         msg = f"Unrecognized file format: '.{extension}' (supported are .toml, .yaml, and .json)."
         raise RuntimeError(msg)
@@ -240,15 +242,17 @@ def from_dict(data_class: Type[ConfigClass], data: Mapping, *, strict: bool = Tr
         return dacite.from_dict(data_class, data, config)
     except dacite.exceptions.WrongTypeError as e:
         msg = (
-            f'Configuration incomplete: {e}.\n'
-            f'Use "{e.field_path}" to specify the field via the command line or set the field in a configuration file.'
+            f"Configuration incomplete: {e}.\n"
+            f"Use '{e.field_path}' to specify the field via the command line or set the field in "
+            "a configuration file."
         )
         raise cordage.exceptions.WrongTypeError(msg) from e
 
     except dacite.exceptions.MissingValueError as e:
         msg = (
-            f'Configuration incomplete: {e}.\n'
-            f'Use "{e.field_path}" to specify the field via the command line or set the field in a configuration file.'
+            f"Configuration incomplete: {e}.\n"
+            f"Use '{e.field_path}' to specify the field via the command line or set the field in "
+            "a configuration file."
         )
         raise cordage.exceptions.MissingValueError(msg) from e
 
@@ -302,7 +306,7 @@ def set_nested_field(dataclass_instance, field_name: str, value: Any):
 
 
 def to_dict(data: Union[ConfigClass, Mapping]) -> dict:
-    """Represent the fields and values of configuration as a (nested) dict."""
+    """Represent the fields and values of configuration as a dict."""
     mapping: Mapping
 
     if dataclasses.is_dataclass(data):
@@ -318,7 +322,9 @@ def to_file(dataclass_instance, path: PathLike):
     return write_dict_to_file(path, to_dict(dataclass_instance))
 
 
-def config_output_dir_type(config_cls: Any, param_name_output_dir) -> Union[Type[str], Type[Path], None]:
+def config_output_dir_type(
+    config_cls: Any, param_name_output_dir
+) -> Union[Type[str], Type[Path], None]:
     for field in dataclasses.fields(config_cls):
         if field.name == param_name_output_dir:
             if field.type in (str, "str"):
