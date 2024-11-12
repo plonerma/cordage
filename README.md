@@ -21,7 +21,7 @@ options.*
 
 ---
 
-*Cordage is in a very early stage. Currently, it lacks a lot of documentation and wider range
+*Cordage is in a **very early stage**. Currently, it lacks a lot of documentation and wider range
 of features. If you think it could be useful for you, try it out and leave suggestions, complains, and improvemnt ideas
 as [github issues](https://github.com/plonerma/cordage/issues).*
 
