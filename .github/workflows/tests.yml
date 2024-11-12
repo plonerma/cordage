@@ -26,6 +26,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
+      id: setup-python
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
@@ -36,7 +37,7 @@ jobs:
       with:
         path: .venv/
         key: "hatch-env-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('pyproject.toml') }}"
-        restore-cache: "hatch-env-${{ steps.setup-python.outputs.python-version }}-"
+        restore-keys: "hatch-env-${{ steps.setup-python.outputs.python-version }}-"
     - name: Install hatch
       run: pipx install hatch; hatch config set dirs.env.virtual ".venv"
     - name: Lint
