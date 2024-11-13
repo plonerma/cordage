@@ -308,7 +308,10 @@ class FunctionContext:
             )
 
     def add_arguments_to_parser(self, config_cls: Type, prefix: Optional[str] = None):
-        """Recursively iterate over all fields  add arguments to parser.
+        """Add all fields in the (nested) config class to the parser.
+
+        Recursively iterate over the fields adding arguments to the
+        parser.
         """
 
         # read documentation of config dataclass. If no help metadata is

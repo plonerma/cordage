@@ -50,8 +50,7 @@ types_to_cast: List[Type[Any]] = [Path, float, bool, int, str, tuple]
 
 
 def get_loader(extension: str) -> Callable:
-    """Load relevant module for reading a file with the given extension.
-    """
+    """Load module for reading a file with the given extension."""
     msg = f"Unrecognized file format: '.{extension}' (supported are .toml, .yaml, and .json)."
     if extension not in ("toml", "yaml", "yml", "yl", "json"):
         raise RuntimeError(msg)
@@ -101,8 +100,7 @@ def read_dict_from_file(path: PathLike) -> Dict[str, Any]:
 
 
 def get_writer(extension: str) -> Callable:
-    """Load relevant module for reading a file with the given extension.
-    """
+    """Load module for reading a file with the given extension."""
     if extension not in ("toml", "yaml", "yml", "yl", "json"):
         msg = f"Unrecognized file format: '.{extension}' (supported are .toml, .yaml, and .json)."
         raise RuntimeError(msg)
