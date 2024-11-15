@@ -1,7 +1,7 @@
 [project]
 name = "cordage"
 dynamic = ["version"]
-description = " Computational research data management tool"
+description = "Computational research data management tool"
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
