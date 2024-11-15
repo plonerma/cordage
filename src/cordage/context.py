@@ -277,6 +277,7 @@ class FunctionContext:
 
             else:
                 msg = (
+                    f"Parameter `{arg_name}` could not be processed:"
                     "Config parser does not support Union annotations with more than one type "
                     "other than None."
                 )
