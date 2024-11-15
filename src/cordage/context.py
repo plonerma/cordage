@@ -277,6 +277,7 @@ class FunctionContext:
 
             else:
                 msg = (
+                    f"Parameter `{arg_name}` could not be processed:"
                     "Config parser does not support Union annotations with more than one type "
                     "other than None."
                 )
@@ -325,6 +326,9 @@ class FunctionContext:
         # Iterate over all fields in the dataclass to add arguments to
         # the parser
         for field in dataclasses.fields(config_cls):
+            if not field.init:
+                continue
+
             if prefix is None and field.name == self.global_config.param_name_output_dir:
                 continue
 
