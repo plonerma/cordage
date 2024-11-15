@@ -1,4 +1,6 @@
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Union
 
 import pytest
 from config_classes import LongConfig as Config
@@ -83,3 +85,50 @@ def test_valid_optional(global_config, resources_path):
     config_file = resources_path / "simple_f.json"
 
     cordage.run(func, args=[str(config_file)], global_config=global_config)
+
+
+def test_non_init_field(global_config):
+    @dataclass
+    class NonInitConfig:
+        a: int
+        b: float = field(init=False)
+
+        def __post_init__(self):
+            self.b = float(self.a)
+
+    def func(config: NonInitConfig):
+        assert int(config.b) == config.a
+
+    cordage.run(func, args=["--a", "2"], global_config=global_config)
+
+    # Invoking the command with b should make the parser exit
+    with pytest.raises(SystemExit):
+        cordage.run(func, args=["--a", "2", "--b", "3"], global_config=global_config)
+
+
+def test_non_init_union_field(global_config):
+    @dataclass
+    class NonInitConfig:
+        a: int
+        b: Union[float, int, None] = field(init=False)
+
+        def __post_init__(self):
+            if self.a > 4:
+                self.b = float(self.a)
+            elif self.a > 0:
+                self.b = self.a
+            else:
+                self.b = None
+
+    def func(config: NonInitConfig):
+        if config.a > 4:
+            assert isinstance(config.b, float)
+        elif config.a <= 0:
+            assert config.b is None
+
+    cordage.run(func, args=["--a", "2"], global_config=global_config)
+    cordage.run(func, args=["--a", "-1"], global_config=global_config)
+
+    # Invoking the command with b should make the parser exit
+    with pytest.raises(SystemExit):
+        cordage.run(func, args=["--a", "2", "--b", "3"], global_config=global_config)
