@@ -288,7 +288,7 @@ class Annotatable(MetadataStore):
 
 
 class Experiment(Annotatable):
-    def __init__(self, *args, config_cls: Optional[Type[ConfigClass]] = None, **kwargs):
+    def __init__(self, *args, config_cls: Optional[Type] = None, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.config_cls = config_cls
@@ -490,7 +490,7 @@ class Trial(Experiment, Generic[ConfigClass]):
         metadata: Optional[Metadata] = None,
         /,
         config: Optional[Dict[str, Any]] = None,
-        config_cls: Optional[Type[ConfigClass]] = None,
+        config_cls=None,
         **kw,
     ):
         if metadata is not None:
@@ -519,12 +519,15 @@ class Trial(Experiment, Generic[ConfigClass]):
                 raise AttributeError(msg)
 
             # Create the config object
-            config = from_dict(self.config_cls, self.metadata.configuration)
+            config = from_dict(
+                self.config_cls,
+                self.metadata.configuration,
+                strict=self.metadata.global_config.strict_mode,
+            )
+            self._config = config
 
             if self.metadata.output_dir is not None:
                 self.set_output_dir(self.metadata.output_dir)
-
-            self._config = config
 
         return config
 
@@ -548,11 +551,12 @@ class Series(Generic[ConfigClass], Experiment):
         base_config: Optional[Dict[str, Any]] = None,
         series_spec: Union[List[Dict], Dict[str, List], None] = None,
         series_skip: Optional[int] = None,
+        config_cls=None,
         **kw,
     ):
         if metadata is not None:
             assert len(kw) == 0 and base_config is None and series_spec is None
-            super().__init__(metadata)
+            super().__init__(metadata, config_cls=config_cls)
         else:
             if isinstance(series_spec, list):
                 series_spec = [
@@ -566,6 +570,7 @@ class Series(Generic[ConfigClass], Experiment):
                     "series_spec": series_spec,
                     "series_skip": series_skip,
                 },
+                config_cls=config_cls,
                 **kw,
             )
 
