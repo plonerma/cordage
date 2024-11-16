@@ -321,7 +321,7 @@ def to_file(dataclass_instance, path: PathLike):
 
 
 def config_output_dir_type(
-    config_cls: Any, param_name_output_dir
+    config_cls: Type["DataclassInstance"], param_name_output_dir: str
 ) -> Union[Type[str], Type[Path], None]:
     for field in dataclasses.fields(config_cls):
         if field.name == param_name_output_dir:

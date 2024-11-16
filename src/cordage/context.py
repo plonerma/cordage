@@ -24,7 +24,6 @@ from docstring_parser import parse as parse_docstring
 from cordage.experiment import Experiment, Series, Trial
 from cordage.global_config import GlobalConfig
 from cordage.util import ConfigClass, logger, nest_items, nested_update, read_dict_from_file
-from cordage.util import from_dict as config_from_dict
 
 
 class MissingType:
@@ -442,10 +441,8 @@ class FunctionContext:
         # series skip might be given via the command line
         # ("--series-skip <n>") or a config file "__series-skip__"
         series_kw["series_skip"] = argument_data.pop(self.global_config._series_skip_key, None)
-
-        series_kw["base_config"] = config_from_dict(
-            self.main_config_cls, argument_data, strict=self.global_config.strict_mode
-        )
+        series_kw["base_config"] = argument_data
+        series_kw["config_cls"] = self.main_config_cls
 
         series: Series = Series(**series_kw)
 
