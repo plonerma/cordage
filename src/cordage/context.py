@@ -224,7 +224,7 @@ class FunctionContext:
             )
 
             self.argument_parser.add_argument(
-                "--output-dir",
+                "--output_dir",
                 type=Path,
                 help="Path to use as the output directory.",
                 default=MISSING,

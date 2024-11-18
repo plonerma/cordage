@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -20,28 +20,6 @@ def test_func_with_output_dir_path(global_config):
         assert output_dir.exists()
 
     cordage.run(func, args=["--a", "1", "--b", "test"], global_config=global_config)
-
-
-def test_func_setting_the_output_dir(global_config):
-    def func(config: ConfigWithoutOutputDir, output_dir: Path):
-        assert config.a == 1
-        assert config.b == "test"
-        assert isinstance(output_dir, Path)
-        assert output_dir.exists()
-        assert output_dir.name == "foo"
-
-    cordage.run(
-        func,
-        args=[
-            "--a",
-            "1",
-            "--b",
-            "test",
-            "--output-dir",
-            str(global_config.base_output_dir / "foo"),
-        ],
-        global_config=global_config,
-    )
 
 
 def test_func_with_output_dir_str(global_config):
@@ -137,4 +115,15 @@ def test_manual_output_dir(global_config):
 
         assert output_dir == global_config.base_output_dir / "test_name"
 
-    cordage.run(func, args=["--a", "1", "--b", "test", "--output_dir", str(global_config.base_output_dir / "test_name")], global_config=global_config)
+    cordage.run(
+        func,
+        args=[
+            "--a",
+            "1",
+            "--b",
+            "test",
+            "--output_dir",
+            str(global_config.base_output_dir / "test_name"),
+        ],
+        global_config=global_config,
+    )

@@ -506,10 +506,7 @@ class Trial(Experiment, Generic[ConfigClass]):
 
     @property
     def config(self) -> ConfigClass:
-        if self._config is not None:
-            config = self._config
-
-        else:
+        if self._config is None:
             if self.config_cls is None:
                 msg = (
                     "`trial.config` is only available if the configuration was loaded with a "
@@ -518,18 +515,17 @@ class Trial(Experiment, Generic[ConfigClass]):
                 )
                 raise AttributeError(msg)
 
+            if self.metadata.output_dir is not None:
+                self.set_output_dir(self.metadata.output_dir)
+
             # Create the config object
-            config = from_dict(
+            self._config = from_dict(
                 self.config_cls,
                 self.metadata.configuration,
                 strict=self.metadata.global_config.strict_mode,
             )
-            self._config = config
 
-            if self.metadata.output_dir is not None:
-                self.set_output_dir(self.metadata.output_dir)
-
-        return config
+        return self._config
 
     def set_output_dir(self, path: Path):
         super().set_output_dir(path)
@@ -538,9 +534,13 @@ class Trial(Experiment, Generic[ConfigClass]):
             output_dir_type = config_output_dir_type(
                 self.config_cls, self.global_config.param_name_output_dir
             )
+
             if output_dir_type is not None:
+                self.metadata.configuration["output_dir"] = path
+
                 # Config has attribute output_dir, mypy does not know it
-                self.config.output_dir = output_dir_type(path)  # type: ignore
+                if self._config is not None:
+                    self.config.output_dir = output_dir_type(path)  # type: ignore
 
 
 class Series(Generic[ConfigClass], Experiment):
