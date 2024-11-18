@@ -168,6 +168,7 @@ def test_non_init_optional_field(global_config):
             self.b = float(self.a)
 
     def func(config: NonInitConfig):
+        assert config.b is not None
         assert int(config.b) == config.a
 
     cordage.run(func, args=["--a", "2"], global_config=global_config)
