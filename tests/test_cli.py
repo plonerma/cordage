@@ -14,7 +14,7 @@ def test_manual_output_dir(global_config, tmp_path):
 
     experiment = cordage.run(
         func,
-        args=["--output-dir", str(tmp_path / "some_specific_output_dir")],
+        args=["--output_dir", str(tmp_path / "some_specific_output_dir")],
         global_config=global_config,
     )
 
@@ -31,7 +31,7 @@ def test_manual_output_dir_for_series(global_config, tmp_path, resources_path):
     cordage.run(
         func,
         args=[
-            "--output-dir",
+            "--output_dir",
             str(tmp_path / "some_specific_output_dir"),
             str(resources_path / "series_simple.yaml"),
         ],

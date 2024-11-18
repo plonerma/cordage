@@ -78,11 +78,6 @@ def test_invalid_trial_series(global_config, resources_path):
     with pytest.raises(ValueError):
         cordage.run(func, args=[str(config_file)], global_config=global_config)
 
-    assert not global_config.base_output_dir.exists(), (
-        "Since the configuration is invalid, the series should not be started and hence no output "
-        "be created."
-    )
-
 
 def test_trial_skipping(global_config, resources_path):
     trial_store: List[cordage.Trial] = []

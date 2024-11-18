@@ -132,3 +132,24 @@ def test_non_init_union_field(global_config):
     # Invoking the command with b should make the parser exit
     with pytest.raises(SystemExit):
         cordage.run(func, args=["--a", "2", "--b", "3"], global_config=global_config)
+
+
+def test_non_init_field_series(global_config, resources_path):
+    @dataclass
+    class NonInitConfig:
+        a: int = -1
+        b: float = field(init=False)
+
+        def __post_init__(self):
+            self.b = float(self.a)
+
+    def func(config: NonInitConfig):
+        assert int(config.b) == config.a
+
+    cordage.run(
+        func,
+        args=[
+            str(resources_path / "series_simple.yaml"),
+        ],
+        global_config=global_config,
+    )

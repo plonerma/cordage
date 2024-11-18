@@ -25,7 +25,6 @@ from typing import (
     Set,
     Tuple,
     Type,
-    TypedDict,
     TypeVar,
     Union,
     overload,
@@ -58,22 +57,13 @@ if typing.TYPE_CHECKING:
 ConfigClass = TypeVar("ConfigClass", bound="DataclassInstance")
 
 
-class SeriesConfiguration(TypedDict):
-    base_config: "DataclassInstance"
-    series_spec: Union[List[Dict], Dict[str, List], None]
-    series_skip: Optional[int]
-
-
-Configuration = TypeVar("Configuration", SeriesConfiguration, "DataclassInstance")
-
-
 @dataclass
-class Metadata(Generic[Configuration]):
+class Metadata:
     function: str
 
     global_config: GlobalConfig
 
-    configuration: Union[Configuration, Dict[str, Any]]
+    configuration: Dict[str, Any]
 
     output_dir: Optional[Path] = None
     status: str = "pending"
@@ -108,12 +98,12 @@ class Metadata(Generic[Configuration]):
         return from_dict(cls, data)
 
 
-class MetadataStore(Generic[Configuration]):
+class MetadataStore:
     _warned_deprecated_nested_global_config: bool = False
 
     def __init__(
         self,
-        metadata: Optional[Metadata[Configuration]] = None,
+        metadata: Optional[Metadata] = None,
         /,
         global_config: Optional[GlobalConfig] = None,
         **kw,
@@ -244,7 +234,7 @@ class MetadataStore(Generic[Configuration]):
         return metadata
 
 
-class Annotatable(MetadataStore[Configuration]):
+class Annotatable(MetadataStore):
     TAG_PATTERN = re.compile(r"\B#(\w*[a-zA-Z]+\w*)")
 
     def __init__(self, *args, **kw):
@@ -297,10 +287,11 @@ class Annotatable(MetadataStore[Configuration]):
                 self.annotations = json.load(fp)
 
 
-class Experiment(Annotatable[Configuration]):
-    def __init__(self, *args, **kwargs):
+class Experiment(Annotatable):
+    def __init__(self, *args, config_cls: Optional[Type] = None, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.config_cls = config_cls
         self.log_handlers: List[logging.Handler] = []
 
     def __repr__(self):
@@ -329,6 +320,7 @@ class Experiment(Annotatable[Configuration]):
 
         Set start time, create output directory, registers run, etc.
         """
+        assert self.config_cls is not None
         assert self.status == "pending", f"{self.__class__.__name__} has already been started."
         self.metadata.start_time = datetime.now(timezone.utc).astimezone()
         self.metadata.status = "running"
@@ -404,18 +396,10 @@ class Experiment(Annotatable[Configuration]):
 
         experiment: Experiment
         if not metadata.is_series:
-            if config_cls is not None:
-                metadata.configuration = from_dict(config_cls, metadata.configuration)
-
-            experiment = Trial(metadata)
+            experiment = Trial(metadata, config_cls=config_cls)
 
         else:
-            if config_cls is not None:
-                metadata.configuration["base_config"] = from_dict(
-                    config_cls, metadata.configuration["base_config"]
-                )
-
-            experiment = Series(metadata)
+            experiment = Series(metadata, config_cls=config_cls)
 
         experiment.load_annotations()
 
@@ -500,58 +484,79 @@ class Experiment(Annotatable[Configuration]):
             logger.removeHandler(handler)
 
 
-class Trial(Experiment["DataclassInstance"], Generic[ConfigClass]):
-    def __init__(
-        self,
-        metadata: Optional[Metadata["DataclassInstance"]] = None,
-        /,
-        config: Optional[ConfigClass] = None,
-        **kw,
-    ):
-        if metadata is not None:
-            if len(kw) == 0 and config is None:
-                super().__init__(metadata)
-            else:
-                msg = "If metadata are provided, config and additional keywords can not be set."
-                raise TypeError(msg)
-        else:
-            super().__init__(configuration=config, **kw)
-
-    @property
-    def config(self) -> ConfigClass:
-        if isinstance(self.metadata.configuration, dict):
-            msg = (
-                "`trial.config` is only available if the configuration was loaded with a "
-                "configuration dataclass (you could use `trial.metadata.configuration` instead)."
-            )
-            raise AttributeError(msg)
-        return self.metadata.configuration
-
-    def set_output_dir(self, path: Path):
-        super().set_output_dir(path)
-
-        output_dir_type = config_output_dir_type(
-            self.config, self.global_config.param_name_output_dir
-        )
-        if output_dir_type is not None:
-            self.config.output_dir = output_dir_type(path)  # type: ignore
-
-        logging.info("Config: %s", self.metadata.configuration)
-
-
-class Series(Generic[ConfigClass], Experiment[SeriesConfiguration]):
+class Trial(Experiment, Generic[ConfigClass]):
     def __init__(
         self,
         metadata: Optional[Metadata] = None,
         /,
-        base_config: Optional[ConfigClass] = None,
+        config: Optional[Dict[str, Any]] = None,
+        config_cls=None,
+        **kw,
+    ):
+        if metadata is not None:
+            if len(kw) == 0 and config is None:
+                super().__init__(metadata, config_cls=config_cls)
+            else:
+                msg = "If metadata are provided, config and additional keywords can not be set."
+                raise TypeError(msg)
+        else:
+            super().__init__(configuration=config, config_cls=config_cls, **kw)
+
+        self._config: Optional[ConfigClass] = None
+
+    @property
+    def config(self) -> ConfigClass:
+        if self._config is None:
+            if self.config_cls is None:
+                msg = (
+                    "`trial.config` is only available if the configuration was loaded with a "
+                    "configuration dataclass. You could use `trial.metadata.configuration` "
+                    "instead or pass `config_cls` to the trial initializer."
+                )
+                raise AttributeError(msg)
+
+            if self.metadata.output_dir is not None:
+                self.set_output_dir(self.metadata.output_dir)
+
+            # Create the config object
+            self._config = from_dict(
+                self.config_cls,
+                self.metadata.configuration,
+                strict=self.metadata.global_config.strict_mode,
+            )
+
+        return self._config
+
+    def set_output_dir(self, path: Path):
+        super().set_output_dir(path)
+
+        if self.config_cls is not None:
+            output_dir_type = config_output_dir_type(
+                self.config_cls, self.global_config.param_name_output_dir
+            )
+
+            if output_dir_type is not None:
+                self.metadata.configuration["output_dir"] = path
+
+                # Config has attribute output_dir, mypy does not know it
+                if self._config is not None:
+                    self.config.output_dir = output_dir_type(path)  # type: ignore
+
+
+class Series(Generic[ConfigClass], Experiment):
+    def __init__(
+        self,
+        metadata: Optional[Metadata] = None,
+        /,
+        base_config: Optional[Dict[str, Any]] = None,
         series_spec: Union[List[Dict], Dict[str, List], None] = None,
         series_skip: Optional[int] = None,
+        config_cls=None,
         **kw,
     ):
         if metadata is not None:
             assert len(kw) == 0 and base_config is None and series_spec is None
-            super().__init__(metadata)
+            super().__init__(metadata, config_cls=config_cls)
         else:
             if isinstance(series_spec, list):
                 series_spec = [
@@ -565,6 +570,7 @@ class Series(Generic[ConfigClass], Experiment[SeriesConfiguration]):
                     "series_spec": series_spec,
                     "series_skip": series_skip,
                 },
+                config_cls=config_cls,
                 **kw,
             )
 
@@ -572,14 +578,6 @@ class Series(Generic[ConfigClass], Experiment[SeriesConfiguration]):
 
         self.trials: Optional[List[Trial[ConfigClass]]] = None
         self.make_all_trials()
-
-    def set_output_dir(self, path: Path):
-        super().set_output_dir(path)
-        output_dir_type = config_output_dir_type(
-            self.base_config, self.global_config.param_name_output_dir
-        )
-        if output_dir_type is not None:
-            self.base_config.output_dir = output_dir_type(path)  # type: ignore
 
     def validate_series_spec(self):
         series_spec = self.series_spec
@@ -604,7 +602,7 @@ class Series(Generic[ConfigClass], Experiment[SeriesConfiguration]):
             assert series_spec is None
 
     @property
-    def base_config(self) -> ConfigClass:
+    def base_config(self) -> Dict[str, Any]:
         return self.metadata.configuration["base_config"]
 
     @property
@@ -704,7 +702,7 @@ class Series(Generic[ConfigClass], Experiment[SeriesConfiguration]):
             assert isinstance(additional_info, dict)
             trial_metadata.additional_info.update(additional_info)
 
-        return Trial(trial_metadata)
+        return Trial(trial_metadata, config_cls=self.config_cls)
 
     def make_all_trials(self):
         if self.series_spec is None:
@@ -726,23 +724,9 @@ class Series(Generic[ConfigClass], Experiment[SeriesConfiguration]):
             self.trials = []
 
             for i, trial_update in enumerate(self.get_trial_updates()):
-                trial_config_data: Dict[str, Any]
+                trial_configuration: Dict[str, Any] = deepcopy(self.base_config)
 
-                if isinstance(self.base_config, dict):
-                    trial_config_data = deepcopy(self.base_config)
-                else:
-                    trial_config_data = to_dict(self.base_config)
-
-                logger.debug("Base configuration: %s", str(trial_config_data))
-                logger.debug("Trial update: %s", str(trial_update))
-
-                nested_update(trial_config_data, trial_update)
-
-                trial_config: ConfigClass
-                if isinstance(self.base_config, dict):
-                    trial_config = trial_config_data
-                else:
-                    trial_config = from_dict(type(self.base_config), trial_config_data)
+                nested_update(trial_configuration, trial_update)
 
                 if i < self.series_skip:
                     status = "skipped"
@@ -750,7 +734,9 @@ class Series(Generic[ConfigClass], Experiment[SeriesConfiguration]):
                     status = "pending"
 
                 trial = self.make_trial(
-                    configuration=trial_config, additional_info={"trial_index": i}, status=status
+                    configuration=trial_configuration,
+                    additional_info={"trial_index": i},
+                    status=status,
                 )
                 self.trials.append(trial)
 

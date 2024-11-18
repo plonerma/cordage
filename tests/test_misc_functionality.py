@@ -59,7 +59,7 @@ def test_function_context_from_configuration(global_config):
 
     assert isinstance(trial, Trial)
 
-    series = context.from_configuration(base_config=SimpleConfig(), series_spec={"a": [1, 2, 3]})
+    series = context.from_configuration(base_config={}, series_spec={"a": [1, 2, 3]})
 
     assert isinstance(series, Series)
 
