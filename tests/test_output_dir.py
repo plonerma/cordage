@@ -119,3 +119,22 @@ def test_incorrect_output_dir_type(global_config):
 
     with pytest.raises(TypeError):
         cordage.run(func, args=["--a", "1", "--b", "test"], global_config=global_config)
+
+
+def test_manual_output_dir(global_config):
+    @dataclass
+    class ConfigWithOutputDir:
+        a: int
+        b: str
+        output_dir: str
+
+    def func(config: ConfigWithOutputDir, output_dir: Path):
+        assert isinstance(config.output_dir, str)
+        assert isinstance(output_dir, Path)
+
+        assert str(output_dir) == str(config.output_dir)
+        assert output_dir.exists()
+
+        assert output_dir == global_config.base_output_dir / "test_name"
+
+    cordage.run(func, args=["--a", "1", "--b", "test", "--output_dir", str(global_config.base_output_dir / "test_name")], global_config=global_config)
