@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from os import PathLike
 from pathlib import Path
-from typing import Dict, Union
+from typing import Union
 
 from cordage.util import from_dict as config_from_dict
 from cordage.util import from_file as config_from_file
@@ -61,7 +61,7 @@ class GlobalConfig:
         )
 
     @classmethod
-    def resolve(cls, global_config: Union[str, PathLike, Dict, "GlobalConfig", None]):
+    def resolve(cls, global_config: Union[str, PathLike, dict, "GlobalConfig", None]):
         # Dictionary: create configuration based on these values
         if isinstance(global_config, dict):
             logger.debug("Creating global from dictionary.")

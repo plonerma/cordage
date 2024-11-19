@@ -2,18 +2,15 @@ import argparse
 import dataclasses
 import inspect
 import sys
+from collections.abc import Mapping
 from contextlib import contextmanager
 from pathlib import Path
 from typing import (
     Any,
     Callable,
     ClassVar,
-    Dict,
-    List,
     Literal,
-    Mapping,
     Optional,
-    Type,
     Union,
     get_args,
     get_origin,
@@ -38,7 +35,7 @@ SUPPORTED_PRIMITIVES = (int, bool, str, float, Path)
 
 
 class Singleton(type):
-    _instances: ClassVar[Dict[Type, Any]] = {}
+    _instances: ClassVar[dict[type, Any]] = {}
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
@@ -54,7 +51,7 @@ class ExperimentStack(metaclass=Singleton):
     """
 
     def __init__(self):
-        self.running: List[Experiment] = []
+        self.running: list[Experiment] = []
 
     def push(self, experiment: Experiment):
         """Push a new experiment on the stack."""
@@ -127,7 +124,7 @@ class FunctionContext:
         func: Callable,  # expects a dataclass
         global_config: GlobalConfig,
         description: Optional[str] = None,
-        config_cls: Optional[Type[ConfigClass]] = None,
+        config_cls: Optional[type[ConfigClass]] = None,
     ):
         self.global_config = global_config
         self.set_function(func)
@@ -145,7 +142,7 @@ class FunctionContext:
         else:
             self.description = description
 
-    def set_config_cls(self, config_cls: Optional[Type] = None):
+    def set_config_cls(self, config_cls: Optional[type] = None):
         # derive configuration class
         if config_cls is None:
             self.main_config_cls = self.func_parameters[
@@ -307,7 +304,7 @@ class FunctionContext:
                 f"--{arg_name}", type=arg_type, default=MISSING, help=help, **kw
             )
 
-    def add_arguments_to_parser(self, config_cls: Type, prefix: Optional[str] = None):
+    def add_arguments_to_parser(self, config_cls: type, prefix: Optional[str] = None):
         """Add all fields in the (nested) config class to the parser.
 
         Recursively iterate over the fields adding arguments to the
@@ -342,12 +339,12 @@ class FunctionContext:
 
             self._add_argument_to_parser(arg_name, field.type, help=help_text)
 
-    def remove_missing_values(self, data: Mapping) -> Dict[str, Any]:
+    def remove_missing_values(self, data: Mapping) -> dict[str, Any]:
         return {k: v for k, v in data.items() if v is not MISSING}
 
     def construct_func_kwargs(self, trial: Trial):
         # construct arguments for the passed callable
-        func_kw: Dict[str, Any] = {}
+        func_kw: dict[str, Any] = {}
 
         # check if any other parameters are expected which can be
         # resolved
@@ -374,7 +371,7 @@ class FunctionContext:
 
         return func_kw
 
-    def parse_args(self, args: Optional[List[str]] = None) -> Experiment:
+    def parse_args(self, args: Optional[list[str]] = None) -> Experiment:
         """Parse the command line arguments.
 
         Args:

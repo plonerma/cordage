@@ -1,5 +1,4 @@
 from time import sleep
-from typing import List
 
 import pytest
 from config_classes import SimpleConfig
@@ -34,7 +33,7 @@ def test_timing(global_config):
 
 @pytest.mark.timeout(60)
 def test_trial_id_collision(global_config):
-    trial_store: List[cordage.Trial] = []
+    trial_store: list[cordage.Trial] = []
 
     def func(config: SimpleConfig, cordage_trial: cordage.Trial, trial_store=trial_store):  # noqa: ARG001
         trial_store.append(cordage_trial)

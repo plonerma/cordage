@@ -2,6 +2,7 @@ import json
 import logging
 import re
 import shutil
+from collections.abc import Generator, Iterable, Mapping
 from copy import deepcopy
 from dataclasses import dataclass, field
 from dataclasses import replace as dataclass_replace
@@ -14,17 +15,9 @@ from pathlib import Path
 from traceback import format_exception
 from typing import (
     Any,
-    Dict,
-    Generator,
     Generic,
-    Iterable,
-    List,
     Literal,
-    Mapping,
     Optional,
-    Set,
-    Tuple,
-    Type,
     TypeVar,
     Union,
     overload,
@@ -63,7 +56,7 @@ class Metadata:
 
     global_config: GlobalConfig
 
-    configuration: Dict[str, Any]
+    configuration: dict[str, Any]
 
     output_dir: Optional[Path] = None
     status: str = "pending"
@@ -75,7 +68,7 @@ class Metadata:
 
     parent_dir: Optional[Path] = None
 
-    additional_info: Dict = field(default_factory=dict)
+    additional_info: dict = field(default_factory=dict)
 
     @property
     def duration(self):
@@ -147,7 +140,7 @@ class MetadataStore:
             self.set_output_dir(self.output_dir)
             return self.output_dir
 
-        tried_paths: Set[Path] = set()
+        tried_paths: set[Path] = set()
         suffix = ""
 
         for i in count(1):
@@ -200,28 +193,30 @@ class MetadataStore:
             json.dump(md_dict, fp, indent=4, default=invalid_obj_default)
 
     @classmethod
+    def _convert_old_global_config_to_new(cls, d: dict[str, Any]) -> dict[str, Any]:
+        if "logging" in d["global_config"]:
+            if not cls._warned_deprecated_nested_global_config:
+                logger.warning("Using deprecated nested global_config format.")
+                cls._warned_deprecated_nested_global_config = True
+
+            for k, v in d["global_config"]["logging"].items():
+                d["global_config"][f"logging_{k}"] = v
+
+            for k, v in d["global_config"]["param_names"].items():
+                d["global_config"][f"param_name_{k}"] = v
+
+            del d["global_config"]["logging"]
+            del d["global_config"]["param_names"]
+        return d
+
+    @classmethod
     def load_metadata(cls, path: PathLike) -> Metadata:
         path = Path(path)
         if not path.suffix == ".json":
             path = path / "cordage.json"
 
         with path.open("r", encoding="utf-8") as fp:
-            metadata_dict = json.load(fp)
-
-            if "logging" in metadata_dict["global_config"]:
-                if not cls._warned_deprecated_nested_global_config:
-                    logger.warning("Using deprecated nested global_config format.")
-                    cls._warned_deprecated_nested_global_config = True
-
-                for k, v in metadata_dict["global_config"]["logging"].items():
-                    metadata_dict["global_config"][f"logging_{k}"] = v
-
-                for k, v in metadata_dict["global_config"]["param_names"].items():
-                    metadata_dict["global_config"][f"param_name_{k}"] = v
-
-                del metadata_dict["global_config"]["logging"]
-                del metadata_dict["global_config"]["param_names"]
-
+            metadata_dict = cls._convert_old_global_config_to_new(json.load(fp))
             metadata = Metadata.from_dict(metadata_dict)
 
         if metadata.output_dir != path.parent:
@@ -288,11 +283,11 @@ class Annotatable(MetadataStore):
 
 
 class Experiment(Annotatable):
-    def __init__(self, *args, config_cls: Optional[Type] = None, **kwargs):
+    def __init__(self, *args, config_cls: Optional[type] = None, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.config_cls = config_cls
-        self.log_handlers: List[logging.Handler] = []
+        self.log_handlers: list[logging.Handler] = []
 
     def __repr__(self):
         if self.metadata.output_dir is not None:
@@ -391,7 +386,7 @@ class Experiment(Annotatable):
         return self
 
     @classmethod
-    def from_path(cls, path: PathLike, config_cls: Optional[Type[ConfigClass]] = None):
+    def from_path(cls, path: PathLike, config_cls: Optional[type[ConfigClass]] = None):
         metadata: Metadata = cls.load_metadata(path)
 
         experiment: Experiment
@@ -408,11 +403,11 @@ class Experiment(Annotatable):
     @classmethod
     def all_from_path(
         cls, results_path: Union[str, PathLike], *, skip_hidden: bool = True
-    ) -> List["Experiment"]:
+    ) -> list["Experiment"]:
         """Load all experiments from the results_path."""
         results_path = Path(results_path)
 
-        seen_dirs: Set[Path] = set()
+        seen_dirs: set[Path] = set()
         experiments = []
 
         for p in results_path.rglob("*/cordage.json"):
@@ -489,7 +484,7 @@ class Trial(Experiment, Generic[ConfigClass]):
         self,
         metadata: Optional[Metadata] = None,
         /,
-        config: Optional[Dict[str, Any]] = None,
+        config: Optional[dict[str, Any]] = None,
         config_cls=None,
         **kw,
     ):
@@ -548,8 +543,8 @@ class Series(Generic[ConfigClass], Experiment):
         self,
         metadata: Optional[Metadata] = None,
         /,
-        base_config: Optional[Dict[str, Any]] = None,
-        series_spec: Union[List[Dict], Dict[str, List], None] = None,
+        base_config: Optional[dict[str, Any]] = None,
+        series_spec: Union[list[dict], dict[str, list], None] = None,
         series_skip: Optional[int] = None,
         config_cls=None,
         **kw,
@@ -576,7 +571,7 @@ class Series(Generic[ConfigClass], Experiment):
 
         self.validate_series_spec()
 
-        self.trials: Optional[List[Trial[ConfigClass]]] = None
+        self.trials: Optional[list[Trial[ConfigClass]]] = None
         self.make_all_trials()
 
     def validate_series_spec(self):
@@ -602,11 +597,11 @@ class Series(Generic[ConfigClass], Experiment):
             assert series_spec is None
 
     @property
-    def base_config(self) -> Dict[str, Any]:
+    def base_config(self) -> dict[str, Any]:
         return self.metadata.configuration["base_config"]
 
     @property
-    def series_spec(self) -> Union[List[Dict], Dict[str, List], None]:
+    def series_spec(self) -> Union[list[dict], dict[str, list], None]:
         return self.metadata.configuration["series_spec"]
 
     @property
@@ -633,15 +628,15 @@ class Series(Generic[ConfigClass], Experiment):
         # else: do nothing
 
     @overload
-    def get_changing_fields(self, sep: Literal[None] = None) -> Set[Tuple[Any, ...]]: ...
+    def get_changing_fields(self, sep: Literal[None] = None) -> set[tuple[Any, ...]]: ...
 
     @overload
-    def get_changing_fields(self, sep: str) -> Set[str]: ...
+    def get_changing_fields(self, sep: str) -> set[str]: ...
 
     def get_changing_fields(
         self, sep: Optional[str] = None
-    ) -> Union[Set[Tuple[Any, ...]], Set[str]]:
-        keys: Set = set()
+    ) -> Union[set[tuple[Any, ...]], set[str]]:
+        keys: set = set()
 
         if isinstance(self.series_spec, list):
             for trial_update in self.series_spec:
@@ -654,7 +649,7 @@ class Series(Generic[ConfigClass], Experiment):
 
         return keys
 
-    def get_trial_updates(self) -> Generator[Dict, None, None]:
+    def get_trial_updates(self) -> Generator[dict, None, None]:
         if isinstance(self.series_spec, list):
             yield from self.series_spec
         elif isinstance(self.series_spec, dict):
@@ -687,7 +682,7 @@ class Series(Generic[ConfigClass], Experiment):
     def make_trial(self, **kw):
         additional_info = kw.pop("additional_info", None)
 
-        fields_to_update: Dict[str, Any] = {
+        fields_to_update: dict[str, Any] = {
             "output_dir": None,
             "configuration": {},
             "additional_info": {},
@@ -724,7 +719,7 @@ class Series(Generic[ConfigClass], Experiment):
             self.trials = []
 
             for i, trial_update in enumerate(self.get_trial_updates()):
-                trial_configuration: Dict[str, Any] = deepcopy(self.base_config)
+                trial_configuration: dict[str, Any] = deepcopy(self.base_config)
 
                 nested_update(trial_configuration, trial_update)
 
