@@ -41,11 +41,11 @@ def run(
 
 
 __all__ = [
-    "run",
-    "FunctionContext",
     "Experiment",
-    "Trial",
-    "Metadata",
+    "FunctionContext",
     "GlobalConfig",
+    "Metadata",
     "Series",
+    "Trial",
+    "run",
 ]
