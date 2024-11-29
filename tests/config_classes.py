@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Optional, Tuple
+from typing import Literal, Optional
 
 
 @dataclass
@@ -55,7 +55,7 @@ class LongConfig:
     e: Literal["a", "b", "c"] = "a"
     f: bool = False
     g: Optional[int] = None
-    h: Tuple[str, ...] = ("a", "b")
-    i: Tuple[str, str] = ("a", "b")
-    j: Tuple[str, int, float] = ("a", 1, 1.0)
+    h: tuple[str, ...] = ("a", "b")
+    i: tuple[str, str] = ("a", "b")
+    j: tuple[str, int, float] = ("a", 1, 1.0)
     k: Optional[int] = None

@@ -1,5 +1,3 @@
-from typing import List
-
 import pytest
 from config_classes import NestedConfig as Config
 
@@ -8,7 +6,7 @@ from cordage import Series
 
 
 def test_trial_series_list(global_config, resources_path):
-    trial_store: List[cordage.Trial] = []
+    trial_store: list[cordage.Trial] = []
 
     def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):  # noqa: ARG001
         trial_store.append(cordage_trial)
@@ -41,7 +39,7 @@ def test_trial_series_list(global_config, resources_path):
 
 @pytest.mark.parametrize("letter", "abc")
 def test_more_trial_series(global_config, resources_path, letter):
-    trial_store: List[cordage.Trial] = []
+    trial_store: list[cordage.Trial] = []
 
     def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):  # noqa: ARG001
         trial_store.append(cordage_trial)
@@ -80,7 +78,7 @@ def test_invalid_trial_series(global_config, resources_path):
 
 
 def test_trial_skipping(global_config, resources_path):
-    trial_store: List[cordage.Trial] = []
+    trial_store: list[cordage.Trial] = []
 
     def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):  # noqa: ARG001
         trial_store.append(cordage_trial)

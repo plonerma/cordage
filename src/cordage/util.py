@@ -1,21 +1,15 @@
 import dataclasses
 import logging
 import typing
+from collections.abc import Generator, Iterable, Mapping
 from datetime import datetime, timedelta
 from os import PathLike
 from pathlib import Path
 from typing import (
     Any,
     Callable,
-    Dict,
-    Generator,
-    Iterable,
-    List,
     Literal,
-    Mapping,
     Optional,
-    Tuple,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -35,18 +29,18 @@ logger = logging.getLogger("cordage")
 
 ConfigClass = TypeVar("ConfigClass", bound="DataclassInstance")
 
-serialization_map: Dict[Type[Any], Callable[..., Any]] = {
+serialization_map: dict[type[Any], Callable[..., Any]] = {
     Path: str,
     datetime: datetime.isoformat,
     timedelta: lambda v: v.total_seconds(),
 }
 
-deserialization_map: Dict[Type[Any], Callable[..., Any]] = {
+deserialization_map: dict[type[Any], Callable[..., Any]] = {
     datetime: lambda v: datetime.fromisoformat(v),
     timedelta: lambda v: timedelta(seconds=v),
 }
 
-types_to_cast: List[Type[Any]] = [Path, float, bool, int, str, tuple]
+types_to_cast: list[type[Any]] = [Path, float, bool, int, str, tuple]
 
 
 def get_loader(extension: str) -> Callable:
@@ -86,7 +80,7 @@ def get_loader(extension: str) -> Callable:
     return loader
 
 
-def read_dict_from_file(path: PathLike) -> Dict[str, Any]:
+def read_dict_from_file(path: PathLike) -> dict[str, Any]:
     """Read dictionary from toml, yaml, or json file.
 
     The file-type is inferred from the file extension.
@@ -152,26 +146,26 @@ def write_dict_to_file(path: PathLike, data: Mapping[str, Any]):
 # no separator
 @overload
 def flattened_items(
-    nested_dict: Dict[Any, Any], *, sep: Literal[None] = None, prefix: Tuple[Any, ...] = ()
-) -> Generator[Tuple[Tuple[Any, ...], Any], None, None]: ...
+    nested_dict: dict[Any, Any], *, sep: Literal[None] = None, prefix: tuple[Any, ...] = ()
+) -> Generator[tuple[tuple[Any, ...], Any], None, None]: ...
 
 
 # spearator given
 @overload
 def flattened_items(
-    nested_dict: Dict[Any, Any], *, sep: str, prefix: Tuple[str, ...] = ()
-) -> Generator[Tuple[str, Any], None, None]: ...
+    nested_dict: dict[Any, Any], *, sep: str, prefix: tuple[str, ...] = ()
+) -> Generator[tuple[str, Any], None, None]: ...
 
 
 def flattened_items(
-    nested_dict: Dict,
+    nested_dict: dict,
     *,
     sep: Optional[str] = None,
-    prefix: Tuple[Any, ...] = (),
-) -> Generator[Union[Tuple[str, Any], Tuple[Tuple[Any, ...], Any]], None, None]:
+    prefix: tuple[Any, ...] = (),
+) -> Generator[Union[tuple[str, Any], tuple[tuple[Any, ...], Any]], None, None]:
     """Iter over all items in a nested dictionary."""
     for k, v in nested_dict.items():
-        flat_k: Tuple = (
+        flat_k: tuple = (
             *prefix,
             k,
         )
@@ -188,7 +182,7 @@ def flattened_items(
             yield sep.join(flat_k), v
 
 
-def nested_update(target_dict: Dict, update_dict: Mapping):
+def nested_update(target_dict: dict, update_dict: Mapping):
     """Update a nested dictionary."""
     for k, v in update_dict.items():
         if isinstance(v, Mapping) and k in target_dict and isinstance(target_dict[k], dict):
@@ -199,16 +193,16 @@ def nested_update(target_dict: Dict, update_dict: Mapping):
     return target_dict
 
 
-def nest_items(flat_items: Iterable[Tuple[Union[str, Tuple[Any, ...]], Any]]) -> Dict[str, Any]:
+def nest_items(flat_items: Iterable[tuple[Union[str, tuple[Any, ...]], Any]]) -> dict[str, Any]:
     """Unflatten a dict.
 
     If any keys contain '.', sub-dicts will be created.
     """
-    nested_dict: Dict[str, Any] = {}
-    dicts_to_nest: List[str] = []
+    nested_dict: dict[str, Any] = {}
+    dicts_to_nest: list[str] = []
 
     for k, v in flat_items:
-        k_tuple: Tuple[Any, ...]
+        k_tuple: tuple[Any, ...]
         if isinstance(k, tuple):
             k_tuple = k
         else:
@@ -234,7 +228,7 @@ def nest_items(flat_items: Iterable[Tuple[Union[str, Tuple[Any, ...]], Any]]) ->
     return nested_dict
 
 
-def from_dict(data_class: Type[ConfigClass], data: Mapping, *, strict: bool = True) -> ConfigClass:
+def from_dict(data_class: type[ConfigClass], data: Mapping, *, strict: bool = True) -> ConfigClass:
     config = dacite.Config(cast=types_to_cast, type_hooks=deserialization_map, strict=strict)
     try:
         return dacite.from_dict(data_class, data, config)
@@ -259,12 +253,12 @@ def from_dict(data_class: Type[ConfigClass], data: Mapping, *, strict: bool = Tr
         raise cordage.exceptions.CordageError(msg) from e
 
 
-def from_file(config_cls: Type[ConfigClass], path: PathLike, **kwargs) -> ConfigClass:
+def from_file(config_cls: type[ConfigClass], path: PathLike, **kwargs) -> ConfigClass:
     data: Mapping = read_dict_from_file(path)
     return from_dict(config_cls, data, **kwargs)
 
 
-def apply_nested_type_mapping(data: Mapping, type_mapping: Mapping[Type, Callable]):
+def apply_nested_type_mapping(data: Mapping, type_mapping: Mapping[type, Callable]):
     result = {}
 
     for k, v in data.items():
@@ -321,8 +315,8 @@ def to_file(dataclass_instance, path: PathLike):
 
 
 def config_output_dir_type(
-    config_cls: Type["DataclassInstance"], param_name_output_dir: str
-) -> Union[Type[str], Type[Path], None]:
+    config_cls: type["DataclassInstance"], param_name_output_dir: str
+) -> Union[type[str], type[Path], None]:
     for field in dataclasses.fields(config_cls):
         if field.name == param_name_output_dir:
             if field.type in (str, "str"):

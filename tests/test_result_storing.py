@@ -1,6 +1,5 @@
 import re
 from pathlib import Path
-from typing import List
 
 from config_classes import SimpleConfig as Config
 
@@ -59,7 +58,7 @@ def test_path_return_value(global_config):
 
 
 def test_float_return_value(global_config):
-    trial_store: List[cordage.Trial] = []
+    trial_store: list[cordage.Trial] = []
 
     def func(config: Config, cordage_trial, trial_store=trial_store):  # noqa: ARG001
         return 0.0
