@@ -25,7 +25,7 @@ def test_exception_logging(global_config):
     with pytest.raises(SomeSpecificError):
         context.execute(trial)
 
-    assert trial.has_status("failed")
+    assert trial.has_status(cordage.Status.FAILED)
     assert "exception" in trial.metadata.additional_info
     assert "Exception42" in trial.metadata.additional_info["exception"]["short"]
     assert "Exception42" in trial.metadata.additional_info["exception"]["traceback"]
