@@ -6,7 +6,7 @@ from typing import Callable, Optional, Union
 
 import cordage.exceptions
 from cordage.context import FunctionContext
-from cordage.experiment import Experiment, Metadata, Series, Trial
+from cordage.experiment import Experiment, Metadata, Series, Status, Trial
 from cordage.global_config import GlobalConfig
 
 logger = logging.getLogger("cordage")
@@ -46,6 +46,7 @@ __all__ = [
     "GlobalConfig",
     "Metadata",
     "Series",
+    "Status",
     "Trial",
     "run",
 ]

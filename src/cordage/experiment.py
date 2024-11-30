@@ -31,6 +31,7 @@ except ImportError:
     colorlog = None  # type: ignore
 
 import typing
+from enum import Enum
 
 from cordage.global_config import GlobalConfig
 from cordage.util import (
@@ -50,6 +51,18 @@ if typing.TYPE_CHECKING:
 ConfigClass = TypeVar("ConfigClass", bound="DataclassInstance")
 
 
+class Status(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETE = "complete"
+    FAILED = "failed"
+    ABORTED = "aborted"
+    SKIPPED = "skipped"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 @dataclass
 class Metadata:
     function: str
@@ -59,7 +72,7 @@ class Metadata:
     configuration: dict[str, Any]
 
     output_dir: Optional[Path] = None
-    status: str = "pending"
+    status: Status = Status.PENDING
 
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
@@ -300,15 +313,15 @@ class Experiment(Annotatable):
         return self.output_dir / self.global_config.logging_filename
 
     @property
-    def status(self) -> str:
+    def status(self) -> Status:
         return self.metadata.status
+
+    def has_status(self, *status: Status):
+        return len(status) == 0 or self.status in status
 
     @property
     def result(self) -> Any:
         return self.metadata.result
-
-    def has_status(self, *status: str):
-        return len(status) == 0 or self.status in status
 
     def start(self):
         """Start the execution of an experiment.
@@ -316,16 +329,18 @@ class Experiment(Annotatable):
         Set start time, create output directory, registers run, etc.
         """
         assert self.config_cls is not None
-        assert self.status == "pending", f"{self.__class__.__name__} has already been started."
+        assert (
+            self.status == Status.PENDING
+        ), f"{self.__class__.__name__} has already been started."
         self.metadata.start_time = datetime.now(timezone.utc).astimezone()
-        self.metadata.status = "running"
+        self.metadata.status = Status.RUNNING
         self.metadata.additional_info["process_id"] = getpid()
         self.create_output_dir()
         self.save_metadata()
         self.save_annotations()
         self.setup_log()
 
-    def end(self, status: str = "undecided"):
+    def end(self, status: Status):
         """End the execution of an experiment.
 
         Write metadata, close logs, etc.
@@ -352,15 +367,15 @@ class Experiment(Annotatable):
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is None:
             logger.info("%s '%s' completed.", self.__class__.__name__, str(self.output_dir))
-            self.end(status="complete")
+            self.end(status=Status.COMPLETE)
         elif issubclass(exc_type, KeyboardInterrupt):
             logger.warning("%s '%s' aborted.", self.__class__.__name__, str(self.output_dir))
-            self.end(status="aborted")
+            self.end(status=Status.ABORTED)
             return False
         else:
             self.handle_exception(exc_type, exc_value, traceback)
             logger.warning("%s '%s' failed.", self.__class__.__name__, str(self.output_dir))
-            self.end(status="failed")
+            self.end(status=Status.FAILED)
             return False
 
     def synchronize(self):
@@ -686,7 +701,7 @@ class Series(Generic[ConfigClass], Experiment):
             "output_dir": None,
             "configuration": {},
             "additional_info": {},
-            "status": "pending",
+            "status": Status.PENDING,
             "parent_dir": None,
             **kw,
         }
@@ -724,9 +739,9 @@ class Series(Generic[ConfigClass], Experiment):
                 nested_update(trial_configuration, trial_update)
 
                 if i < self.series_skip:
-                    status = "skipped"
+                    status = Status.SKIPPED
                 else:
-                    status = "pending"
+                    status = Status.PENDING
 
                 trial = self.make_trial(
                     configuration=trial_configuration,
