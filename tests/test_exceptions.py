@@ -81,4 +81,6 @@ def test_multiple_runtime_exceptions(global_config):
     with pytest.raises(RuntimeError):
         log.info(str(exp.output_dir))
 
-    assert "status: pending" in repr(exp)
+    # An experiment that has been created, but not started, should have
+    # unkown status
+    assert "status: unkown" in repr(exp)
