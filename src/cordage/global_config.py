@@ -2,11 +2,13 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from os import PathLike
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
 
 from cordage.util import from_dict as config_from_dict
 from cordage.util import from_file as config_from_file
 from cordage.util import logger
+
+_warned_deprecated_nested_global_config: bool = False
 
 
 @dataclass
@@ -110,3 +112,22 @@ class GlobalConfig:
         else:
             msg = "`global_config` must be one of str, PathLike, dict, cordage.GlobalConfig, None"
             raise TypeError(msg)
+
+    @classmethod
+    def _convert_old_to_new(cls, d: dict[str, Any]) -> dict[str, Any]:
+        global _warned_deprecated_nested_global_config  # noqa: PLW0603
+
+        if "logging" in d["global_config"]:
+            if not _warned_deprecated_nested_global_config:
+                logger.warning("Using deprecated nested global_config format.")
+                _warned_deprecated_nested_global_config = True
+
+            for k, v in d["global_config"]["logging"].items():
+                d["global_config"][f"logging_{k}"] = v
+
+            for k, v in d["global_config"]["param_names"].items():
+                d["global_config"][f"param_name_{k}"] = v
+
+            del d["global_config"]["logging"]
+            del d["global_config"]["param_names"]
+        return d
