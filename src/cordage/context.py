@@ -18,7 +18,7 @@ from typing import (
 
 from docstring_parser import parse as parse_docstring
 
-from cordage.experiment import Experiment, Series, Trial
+from cordage.experiment import Experiment, Series, Status, Trial
 from cordage.global_config import GlobalConfig
 from cordage.util import ConfigClass, logger, nest_items, nested_update, read_dict_from_file
 
@@ -401,6 +401,7 @@ class FunctionContext:
         series_kw = {
             "function": self.func_name,
             "global_config": self.global_config,
+            "status": Status.PENDING,
             "additional_info": {"description": self.description, "parsed_arguments": args},
         }
 

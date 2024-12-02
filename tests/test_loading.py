@@ -50,11 +50,9 @@ def test_trial_series_loading(global_config, resources_path, capsys):
 
     assert isinstance(series, Series)
 
-    trial_store = [trial.synchronize() for trial in series]
+    assert len(series) == 3
 
-    assert len(trial_store) == 3
-
-    assert all(isinstance(trial, Trial) for trial in trial_store)
+    assert all(isinstance(trial, Trial) for trial in series)
 
     # test log stream
     captured = capsys.readouterr()
@@ -71,7 +69,7 @@ def test_trial_series_loading(global_config, resources_path, capsys):
 
     # after loading the series trials, the configs are merely nested
     # dictionaries
-    for i, trial in enumerate(trial_store):
+    for i, trial in enumerate(series):
         with pytest.raises(AttributeError):
             assert isinstance(trial.config, dict)
 
@@ -113,14 +111,12 @@ def test_trial_series_loading_with_config_class(global_config, resources_path):
 
     assert isinstance(series, Series)
 
-    trial_store = [trial.synchronize() for trial in series]
+    assert len(series) == 3
 
-    assert len(trial_store) == 3
-
-    assert all(isinstance(trial, Trial) for trial in trial_store)
+    assert all(isinstance(trial, Trial) for trial in series)
 
     # after loading the series trials, the configs are merely nested
     # dictionaries
-    for i, trial in enumerate(trial_store):
+    for i, trial in enumerate(series):
         assert isinstance(trial.config, NestedConfig)
         assert trial.config.alpha.b == f"b{i+1}"

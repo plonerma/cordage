@@ -52,6 +52,7 @@ ConfigClass = TypeVar("ConfigClass", bound="DataclassInstance")
 
 
 class Status(str, Enum):
+    UNKOWN = "unkown"
     PENDING = "pending"
     RUNNING = "running"
     COMPLETE = "complete"
@@ -61,6 +62,11 @@ class Status(str, Enum):
 
     def __str__(self) -> str:
         return self.value
+
+    @property
+    def has_started(self):
+        """The pname property."""
+        return self not in (self.UNKOWN, self.PENDING)
 
 
 @dataclass
@@ -72,7 +78,7 @@ class Metadata:
     configuration: dict[str, Any]
 
     output_dir: Optional[Path] = None
-    status: Status = Status.PENDING
+    status: Status = Status.UNKOWN
 
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
@@ -329,9 +335,7 @@ class Experiment(Annotatable):
         Set start time, create output directory, registers run, etc.
         """
         assert self.config_cls is not None
-        assert (
-            self.status == Status.PENDING
-        ), f"{self.__class__.__name__} has already been started."
+        assert not self.status.has_started, f"{self.__class__.__name__} has already been started."
         self.metadata.start_time = datetime.now(timezone.utc).astimezone()
         self.metadata.status = Status.RUNNING
         self.metadata.additional_info["process_id"] = getpid()
@@ -378,7 +382,7 @@ class Experiment(Annotatable):
             self.end(status=Status.FAILED)
             return False
 
-    def synchronize(self):
+    def load_data(self):
         """Synchronize to existing output directory."""
         assert (
             self.metadata.output_dir is not None
@@ -396,12 +400,21 @@ class Experiment(Annotatable):
 
             self.load_annotations()
         else:
-            logger.warning("No metadata found. Skipping synchronization.")
+            logger.warning(
+                "Experiment directory (%s) not found. Cannot load the data.",
+                str(self.metadata.output_dir),
+            )
 
         return self
 
     @classmethod
-    def from_path(cls, path: PathLike, config_cls: Optional[type[ConfigClass]] = None):
+    def from_path(
+        cls,
+        path: PathLike,
+        *,
+        config_cls: Optional[type[ConfigClass]] = None,
+        load_series_trials: bool = True,
+    ):
         metadata: Metadata = cls.load_metadata(path)
 
         experiment: Experiment
@@ -410,6 +423,10 @@ class Experiment(Annotatable):
 
         else:
             experiment = Series(metadata, config_cls=config_cls)
+            if load_series_trials:
+                for trial in experiment:
+                    if trial.metadata.output_dir.exists():
+                        trial.load_data()
 
         experiment.load_annotations()
 
@@ -633,6 +650,12 @@ class Series(Generic[ConfigClass], Experiment):
         return self.series_spec is None
 
     def __enter__(self):
+        for i, trial in enumerate(self.trials):
+            if i < self.series_skip:
+                trial.metadata.status = Status.SKIPPED
+            else:
+                trial.metadata.status = Status.PENDING
+
         if not self.is_singular:
             super().__enter__()
         # else: do nothing
@@ -701,7 +724,7 @@ class Series(Generic[ConfigClass], Experiment):
             "output_dir": None,
             "configuration": {},
             "additional_info": {},
-            "status": Status.PENDING,
+            "status": Status.UNKOWN,
             "parent_dir": None,
             **kw,
         }
@@ -738,15 +761,9 @@ class Series(Generic[ConfigClass], Experiment):
 
                 nested_update(trial_configuration, trial_update)
 
-                if i < self.series_skip:
-                    status = Status.SKIPPED
-                else:
-                    status = Status.PENDING
-
                 trial = self.make_trial(
                     configuration=trial_configuration,
                     additional_info={"trial_index": i},
-                    status=status,
                 )
                 self.trials.append(trial)
 
