@@ -60,7 +60,7 @@ def test_trial_series_loading(global_config, resources_path, capsys):
     i = 1
 
     for captured_line in captured.err.strip().split("\n"):
-        assert f"Trial with alpha.b=b{i-1}" not in captured_line
+        assert f"Trial with alpha.b=b{i - 1}" not in captured_line
 
         if f"Trial with alpha.b=b{i}" in captured_line:
             i += 1
@@ -75,8 +75,8 @@ def test_trial_series_loading(global_config, resources_path, capsys):
 
         config = trial.metadata.configuration
 
-        assert config["alpha"]["b"] == f"b{i+1}"
-        assert trial.has_tag(f"b{i+1}")
+        assert config["alpha"]["b"] == f"b{i + 1}"
+        assert trial.has_tag(f"b{i + 1}")
 
         assert isinstance(trial.metadata.start_time, datetime)
 
@@ -87,7 +87,7 @@ def test_trial_series_loading(global_config, resources_path, capsys):
             log_lines = list(fp)
 
             for j in range(3):
-                expected_log_partial = f"Trial with alpha.b=b{j+1}"
+                expected_log_partial = f"Trial with alpha.b=b{j + 1}"
 
                 if i == j:
                     assert any(expected_log_partial in line for line in log_lines)
@@ -119,4 +119,4 @@ def test_trial_series_loading_with_config_class(global_config, resources_path):
     # dictionaries
     for i, trial in enumerate(series):
         assert isinstance(trial.config, NestedConfig)
-        assert trial.config.alpha.b == f"b{i+1}"
+        assert trial.config.alpha.b == f"b{i + 1}"
