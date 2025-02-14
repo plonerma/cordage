@@ -128,9 +128,9 @@ class Experiment(Annotatable):
 
     def load_data(self):
         """Synchronize to existing output directory."""
-        assert (
-            self.metadata.output_dir is not None
-        ), f"Cannot synchronize a {self.__class__.__name__} which has no `output_dir`."
+        assert self.metadata.output_dir is not None, (
+            f"Cannot synchronize a {self.__class__.__name__} which has no `output_dir`."
+        )
 
         if self.metadata.output_dir.exists():
             metadata = self.load_metadata(self.metadata.output_dir)

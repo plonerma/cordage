@@ -358,9 +358,9 @@ class FunctionContext:
         # check if any other parameters are expected which can be
         # resolved
         for name, param in self.func_parameters.items():
-            assert (
-                param.kind != param.POSITIONAL_ONLY
-            ), "Cordage currently does not support positional only parameters."
+            assert param.kind != param.POSITIONAL_ONLY, (
+                "Cordage currently does not support positional only parameters."
+            )
 
             if name == self.global_config.param_name_config:
                 # pass the configuration
