@@ -210,6 +210,15 @@ class FunctionContext:
             dest=self.global_config._series_skip_key,
         )
 
+        self.argument_parser.add_argument(
+            "--series-trial",
+            type=int,
+            metavar="I",
+            help="Execute trial with index I.",
+            default=MISSING,
+            dest=self.global_config._series_trial_key,
+        )
+
         if not self.global_config.config_only:
             self.argument_parser.add_argument(
                 "--cordage-comment",
@@ -439,6 +448,7 @@ class FunctionContext:
         # series skip might be given via the command line
         # ("--series-skip <n>") or a config file "__series-skip__"
         series_kw["series_skip"] = argument_data.pop(self.global_config._series_skip_key, None)
+        series_kw["series_trial"] = argument_data.pop(self.global_config._series_trial_key, None)
         series_kw["base_config"] = argument_data
         series_kw["config_cls"] = self.main_config_cls
 
@@ -463,12 +473,18 @@ class FunctionContext:
         base_config=None,
         series_spec=None,
         series_skip: Optional[int] = None,
+        series_trial: Optional[int] = None,
         comment: Optional[str] = None,
     ) -> Experiment:
         _usage = "Either pass `config` or `base_config` and `series_spec`"
 
         if config is not None:
-            assert base_config is None and series_spec is None and series_skip is None, _usage
+            assert (
+                base_config is None
+                and series_spec is None
+                and series_skip is None
+                and series_trial is None
+            ), _usage
 
             trial: Trial = Trial(
                 function=self.func_name,
@@ -490,6 +506,7 @@ class FunctionContext:
                 global_config=self.global_config,
                 series_spec=series_spec,
                 series_skip=series_skip,
+                series_trial=series_trial,
                 additional_info={"description": self.description},
             )
             series.comment = comment

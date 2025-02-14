@@ -101,3 +101,24 @@ def test_trial_skipping(global_config, resources_path):
 
     for i, trial in enumerate(trial_store, start=1):
         assert trial.output_dir == global_config.base_output_dir / "experiment" / str(i)
+
+
+def test_single_trial_execution(global_config, resources_path):
+    trial_store: list[cordage.Trial] = []
+
+    def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):  # noqa: ARG001
+        trial_store.append(cordage_trial)
+
+    config_file = resources_path / "series_list.yml"
+
+    cordage.run(func, args=[str(config_file), "--series-trial", "1"], global_config=global_config)
+
+    assert len(trial_store) == 1
+
+    assert trial_store[0].metadata.additional_info["trial_index"] == 1
+    assert trial_store[0].config.alpha.a == 2
+    assert trial_store[0].config.alpha.b == "b2"
+    assert trial_store[0].config.beta.a == "c2"
+
+    for i, trial in enumerate(trial_store, start=1):
+        assert trial.output_dir == global_config.base_output_dir / "experiment" / str(i)

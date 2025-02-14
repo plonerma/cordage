@@ -368,6 +368,7 @@ class Series(Generic[ConfigClass], Experiment):
         base_config: Optional[dict[str, Any]] = None,
         series_spec: Union[list[dict], dict[str, list], None] = None,
         series_skip: Optional[int] = None,
+        series_trial: Optional[int] = None,
         config_cls=None,
         **kw,
     ):
@@ -386,6 +387,7 @@ class Series(Generic[ConfigClass], Experiment):
                     "base_config": base_config,
                     "series_spec": series_spec,
                     "series_skip": series_skip,
+                    "series_trial": series_trial,
                 },
                 config_cls=config_cls,
                 **kw,
@@ -395,6 +397,11 @@ class Series(Generic[ConfigClass], Experiment):
         self.make_all_trials()
 
     def validate_series_spec(self):
+        assert (
+            self.metadata.configuration.get("series_skip", None) is None
+            or self.metadata.configuration.get("series_trial", None) is None
+        ), "Only one of `series_skip` and`series_trial` should be used."
+
         series_spec = self.series_spec
 
         if isinstance(series_spec, list):
@@ -566,14 +573,22 @@ class Series(Generic[ConfigClass], Experiment):
         assert self.trials is not None
 
         if not self.is_singular:
-            skip = 0 if include_skipped else self.series_skip
+            i = self.metadata.configuration.get("series_trial", None)
+            if i is None or include_skipped:
+                skip = 0 if include_skipped else self.series_skip
 
-            for i, trial in enumerate(self.trials[skip:], start=skip):
+                for i, trial in enumerate(self.trials[skip:], start=skip):
+                    trial_subdir = str(i).zfill(ceil(log10(len(self))))
+
+                    trial.metadata.output_dir = self.output_dir / trial_subdir
+
+                    yield trial
+            else:
+                trial = self.trials[i]
                 trial_subdir = str(i).zfill(ceil(log10(len(self))))
-
                 trial.metadata.output_dir = self.output_dir / trial_subdir
-
                 yield trial
+
         else:
             assert len(self.trials) == 1
             yield self.trials[0]
