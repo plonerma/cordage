@@ -1,3 +1,5 @@
+import math
+
 import pytest
 from config_classes import NestedConfig as Config
 
@@ -20,12 +22,12 @@ def test_trial_series_list(global_config, resources_path):
     assert series.get_changing_fields() == {("alpha", "a"), ("alpha", "b"), ("beta", "a")}
 
     for i, t in zip(range(1, 6), trial_store):
-        assert t.metadata.additional_info["trial_index"] == i - 1
+        assert t.metadata.additional_info["trial_index"] == i
         assert t.config.alpha.a == i
         assert t.config.alpha.b == f"b{i}"
         assert t.config.beta.a == f"c{i}"
 
-        assert t.output_dir == global_config.base_output_dir / "experiment" / str(i-1)
+        assert t.output_dir == global_config.base_output_dir / "experiment" / str(i)
 
 
 @pytest.mark.parametrize("letter", "abc")
@@ -43,10 +45,10 @@ def test_more_trial_series(global_config, resources_path, letter):
 
     assert len(trial_store) == trial_store[0].config.alphas * trial_store[0].config.betas
 
-    for i, trial in enumerate(trial_store):
+    for i, trial in enumerate(trial_store, start=1):
         assert trial.config.alpha.b == "b1"
-        assert trial.config.beta.a == "c" + str(1 + (i // trial_store[0].config.alphas))
-        assert trial.config.alpha.a == (1 + (i % trial_store[0].config.alphas))
+        assert trial.config.beta.a == "c" + str(math.ceil(i / trial_store[0].config.alphas))
+        assert trial.config.alpha.a == 1 + ((i - 1) % trial_store[0].config.alphas)
 
         assert trial.metadata.parent_dir is not None
         assert trial.metadata.parent_dir.parts[-1] == "experiment"
@@ -68,10 +70,13 @@ def test_invalid_trial_series(global_config, resources_path):
         cordage.run(func, args=[str(config_file)], global_config=global_config)
 
 
-@pytest.mark.parametrize("args, expected_trials", [
-    (("--series-skip", "3"), (4, 5)),
-    (("--series-trial", "1"), (2,)),
-])
+@pytest.mark.parametrize(
+    "args, expected_trials",
+    [
+        (("--series-skip", "3"), (4, 5)),
+        (("--series-trial", "2"), (2,)),
+    ],
+)
 def test_partial_series_execution(global_config, resources_path, expected_trials, args):
     trial_store: list[cordage.Trial] = []
 
@@ -85,9 +90,9 @@ def test_partial_series_execution(global_config, resources_path, expected_trials
     assert len(trial_store) == len(expected_trials)
 
     for i, t in zip(expected_trials, trial_store):
-        assert t.metadata.additional_info["trial_index"] == i - 1
+        assert t.metadata.additional_info["trial_index"] == i
         assert t.config.alpha.a == i
         assert t.config.alpha.b == f"b{i}"
         assert t.config.beta.a == f"c{i}"
 
-        assert t.output_dir == global_config.base_output_dir / "experiment" / str(i-1)
+        assert t.output_dir == global_config.base_output_dir / "experiment" / str(i)

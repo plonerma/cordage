@@ -445,8 +445,8 @@ class Series(Generic[ConfigClass], Experiment):
         return self.series_spec is None
 
     def __enter__(self):
-        for i, trial in enumerate(self.trials):
-            if i < self.series_skip:
+        for i, trial in enumerate(self.trials, start=1):
+            if i <= self.series_skip:
                 trial.metadata.status = Status.SKIPPED
             else:
                 trial.metadata.status = Status.PENDING
@@ -553,7 +553,7 @@ class Series(Generic[ConfigClass], Experiment):
             )
             self.trials = []
 
-            for i, trial_update in enumerate(self.get_trial_updates()):
+            for i, trial_update in enumerate(self.get_trial_updates(), start=1):
                 trial_configuration: dict[str, Any] = deepcopy(self.base_config)
 
                 nested_update(trial_configuration, trial_update)
@@ -577,14 +577,14 @@ class Series(Generic[ConfigClass], Experiment):
             if i is None or include_skipped:
                 skip = 0 if include_skipped else self.series_skip
 
-                for i, trial in enumerate(self.trials[skip:], start=skip):
+                for i, trial in enumerate(self.trials[skip:], start=skip + 1):
                     trial_subdir = str(i).zfill(ceil(log10(len(self))))
 
                     trial.metadata.output_dir = self.output_dir / trial_subdir
 
                     yield trial
             else:
-                trial = self.trials[i]
+                trial = self.trials[i - 1]
                 trial_subdir = str(i).zfill(ceil(log10(len(self))))
                 trial.metadata.output_dir = self.output_dir / trial_subdir
                 yield trial

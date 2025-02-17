@@ -62,7 +62,7 @@ def test_trial_series_loading(global_config, resources_path, capsys):
     for captured_line in captured.err.strip().split("\n"):
         assert f"Trial with alpha.b=b{i}" not in captured_line
 
-        if f"Trial with alpha.b=b{i+1}" in captured_line:
+        if f"Trial with alpha.b=b{i + 1}" in captured_line:
             i += 1
 
     assert i == 5
