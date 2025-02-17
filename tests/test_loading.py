@@ -50,22 +50,22 @@ def test_trial_series_loading(global_config, resources_path, capsys):
 
     assert isinstance(series, Series)
 
-    assert len(series) == 3
+    assert len(series) == 5
 
     assert all(isinstance(trial, Trial) for trial in series)
 
     # test log stream
     captured = capsys.readouterr()
 
-    i = 1
+    i = 0
 
     for captured_line in captured.err.strip().split("\n"):
-        assert f"Trial with alpha.b=b{i - 1}" not in captured_line
+        assert f"Trial with alpha.b=b{i}" not in captured_line
 
-        if f"Trial with alpha.b=b{i}" in captured_line:
+        if f"Trial with alpha.b=b{i+1}" in captured_line:
             i += 1
 
-    assert i == 4
+    assert i == 5
 
     # after loading the series trials, the configs are merely nested
     # dictionaries
@@ -111,7 +111,7 @@ def test_trial_series_loading_with_config_class(global_config, resources_path):
 
     assert isinstance(series, Series)
 
-    assert len(series) == 3
+    assert len(series) == 5
 
     assert all(isinstance(trial, Trial) for trial in series)
 

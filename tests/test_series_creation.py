@@ -19,22 +19,13 @@ def test_trial_series_list(global_config, resources_path):
 
     assert series.get_changing_fields() == {("alpha", "a"), ("alpha", "b"), ("beta", "a")}
 
-    assert len(trial_store) == 3
-    assert trial_store[0].config.alpha.a == 1
-    assert trial_store[0].config.alpha.b == "b1"
-    assert trial_store[0].config.beta.a == "c1"
-    assert trial_store[0].metadata.additional_info["trial_index"] == 0
-    assert trial_store[1].config.alpha.a == 2
-    assert trial_store[1].config.alpha.b == "b2"
-    assert trial_store[1].config.beta.a == "c2"
-    assert trial_store[1].metadata.additional_info["trial_index"] == 1
-    assert trial_store[2].config.alpha.a == 3
-    assert trial_store[2].config.alpha.b == "b3"
-    assert trial_store[2].config.beta.a == "c3"
-    assert trial_store[2].metadata.additional_info["trial_index"] == 2
+    for i, t in zip(range(1, 6), trial_store):
+        assert t.metadata.additional_info["trial_index"] == i - 1
+        assert t.config.alpha.a == i
+        assert t.config.alpha.b == f"b{i}"
+        assert t.config.beta.a == f"c{i}"
 
-    for i, trial in enumerate(trial_store):
-        assert trial.output_dir == global_config.base_output_dir / "experiment" / str(i)
+        assert t.output_dir == global_config.base_output_dir / "experiment" / str(i-1)
 
 
 @pytest.mark.parametrize("letter", "abc")
@@ -77,7 +68,11 @@ def test_invalid_trial_series(global_config, resources_path):
         cordage.run(func, args=[str(config_file)], global_config=global_config)
 
 
-def test_trial_skipping(global_config, resources_path):
+@pytest.mark.parametrize("args, expected_trials", [
+    (("--series-skip", "3"), (4, 5)),
+    (("--series-trial", "1"), (2,)),
+])
+def test_partial_series_execution(global_config, resources_path, expected_trials, args):
     trial_store: list[cordage.Trial] = []
 
     def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):  # noqa: ARG001
@@ -85,40 +80,14 @@ def test_trial_skipping(global_config, resources_path):
 
     config_file = resources_path / "series_list.yml"
 
-    cordage.run(func, args=[str(config_file), "--series-skip", "1"], global_config=global_config)
+    cordage.run(func, args=[str(config_file), *args], global_config=global_config)
 
-    assert len(trial_store) == 2
+    assert len(trial_store) == len(expected_trials)
 
-    assert trial_store[0].metadata.additional_info["trial_index"] == 1
-    assert trial_store[0].config.alpha.a == 2
-    assert trial_store[0].config.alpha.b == "b2"
-    assert trial_store[0].config.beta.a == "c2"
+    for i, t in zip(expected_trials, trial_store):
+        assert t.metadata.additional_info["trial_index"] == i - 1
+        assert t.config.alpha.a == i
+        assert t.config.alpha.b == f"b{i}"
+        assert t.config.beta.a == f"c{i}"
 
-    assert trial_store[1].metadata.additional_info["trial_index"] == 2
-    assert trial_store[1].config.alpha.a == 3
-    assert trial_store[1].config.alpha.b == "b3"
-    assert trial_store[1].config.beta.a == "c3"
-
-    for i, trial in enumerate(trial_store, start=1):
-        assert trial.output_dir == global_config.base_output_dir / "experiment" / str(i)
-
-
-def test_single_trial_execution(global_config, resources_path):
-    trial_store: list[cordage.Trial] = []
-
-    def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):  # noqa: ARG001
-        trial_store.append(cordage_trial)
-
-    config_file = resources_path / "series_list.yml"
-
-    cordage.run(func, args=[str(config_file), "--series-trial", "1"], global_config=global_config)
-
-    assert len(trial_store) == 1
-
-    assert trial_store[0].metadata.additional_info["trial_index"] == 1
-    assert trial_store[0].config.alpha.a == 2
-    assert trial_store[0].config.alpha.b == "b2"
-    assert trial_store[0].config.beta.a == "c2"
-
-    for i, trial in enumerate(trial_store, start=1):
-        assert trial.output_dir == global_config.base_output_dir / "experiment" / str(i)
+        assert t.output_dir == global_config.base_output_dir / "experiment" / str(i-1)

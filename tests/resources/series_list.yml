@@ -15,3 +15,11 @@ __series__:
       a: 3
       b: "b3"
     beta.a: "c3"
+
+  - alpha.a: 4
+    alpha.b: "b4"
+    beta.a: "c4"
+
+  - alpha.a: 5
+    alpha.b: "b5"
+    beta.a: "c5"
