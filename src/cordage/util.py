@@ -27,6 +27,10 @@ import cordage.exceptions
 logger = logging.getLogger("cordage")
 
 
+TrialIndicesEntry = Union[tuple[Optional[int], Optional[int]], int]
+TrialIndices = list[TrialIndicesEntry]
+
+
 ConfigClass = TypeVar("ConfigClass", bound="DataclassInstance")
 
 serialization_map: dict[type[Any], Callable[..., Any]] = {

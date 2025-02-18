@@ -1,9 +1,9 @@
 import logging
 import shutil
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from copy import deepcopy
 from datetime import datetime, timezone
-from itertools import count, product
+from itertools import chain, count, product
 from json.decoder import JSONDecodeError
 from math import ceil, floor, log10
 from os import PathLike, getpid
@@ -30,6 +30,8 @@ import typing
 
 from cordage.metadata import Annotatable, Metadata, Status
 from cordage.util import (
+    TrialIndices,
+    TrialIndicesEntry,
     config_output_dir_type,
     flattened_items,
     from_dict,
@@ -367,8 +369,7 @@ class Series(Generic[ConfigClass], Experiment):
         /,
         base_config: Optional[dict[str, Any]] = None,
         series_spec: Union[list[dict], dict[str, list], None] = None,
-        series_skip: Optional[int] = None,
-        series_trial: Optional[int] = None,
+        trial_indices: Optional[TrialIndices] = None,
         config_cls=None,
         **kw,
     ):
@@ -386,8 +387,7 @@ class Series(Generic[ConfigClass], Experiment):
                 configuration={
                     "base_config": base_config,
                     "series_spec": series_spec,
-                    "series_skip": series_skip,
-                    "series_trial": series_trial,
+                    "trial_indices": trial_indices,
                 },
                 config_cls=config_cls,
                 **kw,
@@ -445,8 +445,8 @@ class Series(Generic[ConfigClass], Experiment):
         return self.series_spec is None
 
     def __enter__(self):
-        for i, trial in enumerate(self.trials):
-            if i < self.series_skip:
+        for i, trial in enumerate(self.trials, start=1):
+            if i <= self.series_skip:
                 trial.metadata.status = Status.SKIPPED
             else:
                 trial.metadata.status = Status.PENDING
@@ -553,7 +553,7 @@ class Series(Generic[ConfigClass], Experiment):
             )
             self.trials = []
 
-            for i, trial_update in enumerate(self.get_trial_updates()):
+            for i, trial_update in enumerate(self.get_trial_updates(), start=1):
                 trial_configuration: dict[str, Any] = deepcopy(self.base_config)
 
                 nested_update(trial_configuration, trial_update)
@@ -567,24 +567,45 @@ class Series(Generic[ConfigClass], Experiment):
     def __iter__(self):
         return self.get_all_trials(include_skipped=False)
 
+    def get_effective_indices(self, *, include_skipped=False) -> list[int]:
+        if include_skipped:
+            return list(range(1, len(self) + 1))
+
+        entries: Optional[TrialIndices] = self.metadata.configuration.get("trial_indices", None)
+
+        if not entries:
+            return list(range(1, len(self) + 1))
+
+        indices: list[Union[Iterable[int]]] = []
+
+        entry: TrialIndicesEntry
+        for entry in entries:
+            if isinstance(entry, int):
+                indices.append([entry])
+            else:
+                start, end = entry
+
+                if start is None:
+                    # Indices start at 1
+                    start = 1
+
+                if end is not None:
+                    # Ranges are inclusive
+                    end += 1
+
+                indices.append(range(*slice(start, end).indices(len(self) + 1)))
+
+        # Deduplicate (maintaining the insertion order)
+        return list(dict.fromkeys(chain.from_iterable(indices)))
+
     def get_all_trials(
         self, *, include_skipped: bool = False
     ) -> Generator[Trial[ConfigClass], None, None]:
         assert self.trials is not None
 
         if not self.is_singular:
-            i = self.metadata.configuration.get("series_trial", None)
-            if i is None or include_skipped:
-                skip = 0 if include_skipped else self.series_skip
-
-                for i, trial in enumerate(self.trials[skip:], start=skip):
-                    trial_subdir = str(i).zfill(ceil(log10(len(self))))
-
-                    trial.metadata.output_dir = self.output_dir / trial_subdir
-
-                    yield trial
-            else:
-                trial = self.trials[i]
+            for i in self.get_effective_indices(include_skipped=include_skipped):
+                trial = self.trials[i - 1]
                 trial_subdir = str(i).zfill(ceil(log10(len(self))))
                 trial.metadata.output_dir = self.output_dir / trial_subdir
                 yield trial
