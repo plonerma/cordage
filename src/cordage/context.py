@@ -514,11 +514,7 @@ class FunctionContext(TrialIndexMixin):
         _usage = "Either pass `config` or `base_config` and `series_spec`"
 
         if config is not None:
-            assert (
-                base_config is None
-                and series_spec is None
-                and trial_indices is None
-            ), _usage
+            assert base_config is None and series_spec is None and trial_indices is None, _usage
 
             trial: Trial = Trial(
                 function=self.func_name,
