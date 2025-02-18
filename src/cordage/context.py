@@ -1,6 +1,7 @@
 import argparse
 import dataclasses
 import inspect
+import re
 import sys
 from collections.abc import Mapping
 from contextlib import contextmanager
@@ -20,7 +21,14 @@ from docstring_parser import parse as parse_docstring
 
 from cordage.experiment import Experiment, Series, Status, Trial
 from cordage.global_config import GlobalConfig
-from cordage.util import ConfigClass, logger, nest_items, nested_update, read_dict_from_file
+from cordage.util import (
+    ConfigClass,
+    TrialIndices,
+    logger,
+    nest_items,
+    nested_update,
+    read_dict_from_file,
+)
 
 
 class MissingType:
@@ -106,7 +114,46 @@ class ExperimentStack(metaclass=Singleton):
 experiment_stack: ExperimentStack = ExperimentStack()
 
 
-class FunctionContext:
+class TrialIndexMixin:
+    trial_index_pattern = re.compile(
+        r"^(?!-\s*$)"  # Not just a dash
+        r"(?P<start>\d+)?"  # Optional range start
+        r"\s*(?P<is_range>-)?"  # optional range indicator
+        r"\s*(?P<end>\d+)??$"  # Optional range end (if only one number, start is used)
+    )
+
+    def match_trial_range_entry(
+        self,
+        value,
+    ) -> Union[int, tuple[Optional[int], Optional[int]]]:
+        match = self.trial_index_pattern.match(value.strip())
+        if not match:
+            msg = (
+                f"'{value}' does not match the single index or range pattern "
+                "(either 'I' or 'I-J', with positive ints I&J)."
+            )
+            raise ValueError(msg)
+
+        # If '-' is included, a range is specified
+        elif match.group("is_range"):
+            start = match.group("start")
+            if start is not None:
+                start = int(start)
+
+            end = match.group("end")
+            if end is not None:
+                end = int(end)
+
+            return (start, end)
+
+        else:
+            return int(match.group("start"))
+
+    def match_trial_range(self, value) -> TrialIndices:
+        return [self.match_trial_range_entry(v) for v in value.split(",")]
+
+
+class FunctionContext(TrialIndexMixin):
     """Wrapper for a function which accepts a dataclass configuration.
 
     This class can be used to:
@@ -202,21 +249,11 @@ class FunctionContext:
         )
 
         self.argument_parser.add_argument(
-            "--series-skip",
-            type=int,
-            metavar="N",
-            help="Skip first N trials in the execution of a series.",
+            "--trial-index",
+            type=self.match_trial_range,
+            help="Execute only the specified trials.",
             default=MISSING,
-            dest=self.global_config._series_skip_key,
-        )
-
-        self.argument_parser.add_argument(
-            "--series-trial",
-            type=int,
-            metavar="I",
-            help="Execute trial with index I.",
-            default=MISSING,
-            dest=self.global_config._series_trial_key,
+            dest=self.global_config._trial_indices_key,
         )
 
         if not self.global_config.config_only:
@@ -447,8 +484,7 @@ class FunctionContext:
 
         # series skip might be given via the command line
         # ("--series-skip <n>") or a config file "__series-skip__"
-        series_kw["series_skip"] = argument_data.pop(self.global_config._series_skip_key, None)
-        series_kw["series_trial"] = argument_data.pop(self.global_config._series_trial_key, None)
+        series_kw["trial_indices"] = argument_data.pop(self.global_config._trial_indices_key, None)
         series_kw["base_config"] = argument_data
         series_kw["config_cls"] = self.main_config_cls
 
@@ -472,8 +508,7 @@ class FunctionContext:
         config=None,
         base_config=None,
         series_spec=None,
-        series_skip: Optional[int] = None,
-        series_trial: Optional[int] = None,
+        trial_indices: Optional[TrialIndices] = None,
         comment: Optional[str] = None,
     ) -> Experiment:
         _usage = "Either pass `config` or `base_config` and `series_spec`"
@@ -482,8 +517,7 @@ class FunctionContext:
             assert (
                 base_config is None
                 and series_spec is None
-                and series_skip is None
-                and series_trial is None
+                and trial_indices is None
             ), _usage
 
             trial: Trial = Trial(
@@ -505,8 +539,7 @@ class FunctionContext:
                 base_config=base_config,
                 global_config=self.global_config,
                 series_spec=series_spec,
-                series_skip=series_skip,
-                series_trial=series_trial,
+                trial_indices=trial_indices,
                 additional_info={"description": self.description},
             )
             series.comment = comment

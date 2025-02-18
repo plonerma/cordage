@@ -5,6 +5,7 @@ from config_classes import NestedConfig as Config
 
 import cordage
 from cordage import Series
+from cordage.context import TrialIndexMixin
 
 
 def test_trial_series_list(global_config, resources_path):
@@ -73,8 +74,11 @@ def test_invalid_trial_series(global_config, resources_path):
 @pytest.mark.parametrize(
     "args, expected_trials",
     [
-        (("--series-skip", "3"), (4, 5)),
-        (("--series-trial", "2"), (2,)),
+        (("--trial-index", "4-"), (4, 5)),
+        (("--trial-index", "2"), (2,)),
+        (("--trial-index", "2, 3"), (2, 3)),
+        (("--trial-index", "1, 3-5"), (1, 3, 4, 5)),
+        (("--trial-index", "-3"), (1, 2, 3)),
     ],
 )
 def test_partial_series_execution(global_config, resources_path, expected_trials, args):
@@ -96,3 +100,56 @@ def test_partial_series_execution(global_config, resources_path, expected_trials
         assert t.config.beta.a == f"c{i}"
 
         assert t.output_dir == global_config.base_output_dir / "experiment" / str(i)
+
+
+@pytest.mark.parametrize(
+    "text,match",
+    [
+        ("1-5", (1, 5)),
+        (" 1-5", (1, 5)),
+        ("1 -5", (1, 5)),
+        ("1- 5 ", (1, 5)),
+        ("7", 7),
+        (" 6", 6),
+        ("7 ", 7),
+        (" 4 ", 4),
+        ("7 ", 7),
+        (" 6", 6),
+        ("2-78", (2, 78)),
+        ("5-", (5, None)),
+        ("-8", (None, 8)),
+        ("10-20", (10, 20)),
+        ("-", False),
+        ("-5-8", False),
+        ("a-b", False),
+        ("3-4-5", False),
+    ],
+)
+def test_trial_range_entry_matching(text, match):
+    m = TrialIndexMixin()
+    if match is False:
+        with pytest.raises(ValueError):
+            m.match_trial_range_entry(text)
+
+    else:
+        assert m.match_trial_range_entry(text) == match
+
+
+@pytest.mark.parametrize(
+    "text,match",
+    [
+        ("1-5, 2-78, -8,7", [(1, 5), (2, 78), (None, 8), 7]),
+        ("7, 6, 3", [7, 6, 3]),
+        ("10-20, 1, 2, 5-6", [(10, 20), 1, 2, (5, 6)]),
+        ("a, a-b, 4", False),
+        ("1, 3-4-5, 5, 3", False),
+    ],
+)
+def test_trial_range_matching(text, match):
+    m = TrialIndexMixin()
+    if not match:
+        with pytest.raises(ValueError):
+            m.match_trial_range(text)
+
+    else:
+        assert m.match_trial_range(text) == match

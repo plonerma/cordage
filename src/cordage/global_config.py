@@ -25,8 +25,7 @@ class GlobalConfig:
     overwrite_existing: bool = False
 
     _series_spec_key = "__series__"
-    _series_skip_key = "__series-skip__"
-    _series_trial_key = "__series-trial__"
+    _trial_indices_key = "__series-trial-indices"
     _experiment_comment_key = "__cordage-comment__"
     _output_dir_key = "__output-dir__"
 
