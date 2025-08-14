@@ -81,7 +81,7 @@ python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 detached = true
 dependencies = [
   "mypy>=1.7.0",
-  "ruff>=0.9.6",
+  "ruff>=0.12.8",
 ]
 [tool.hatch.envs.lint.scripts]
 typing = "mypy --install-types --non-interactive {args:src/cordage tests}"

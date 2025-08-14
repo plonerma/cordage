@@ -24,6 +24,8 @@ class GlobalConfig:
 
     overwrite_existing: bool = False
 
+    zero_pad_trial_output_dir: bool = False
+
     _series_spec_key = "__series__"
     _trial_indices_key = "__series-trial-indices"
     _experiment_comment_key = "__cordage-comment__"

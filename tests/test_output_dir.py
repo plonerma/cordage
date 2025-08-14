@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import pytest
@@ -126,4 +126,25 @@ def test_manual_output_dir(global_config):
             str(global_config.base_output_dir / "test_name"),
         ],
         global_config=global_config,
+    )
+
+
+@pytest.mark.parametrize("zero_pad", (True, False))
+def test_zero_padding(global_config, zero_pad, resources_path):
+    @dataclass
+    class Config:
+        a: int
+
+    def func(config: Config, output_dir: Path):
+        if not zero_pad:
+            assert output_dir.parts[-1] == str(config.a)
+        else:
+            assert output_dir.parts[-1] == f"{config.a:02}"
+
+    cordage.run(
+        func,
+        args=[
+            str(resources_path / "series_simple10.yaml"),
+        ],
+        global_config=replace(global_config, zero_pad_trial_output_dir=zero_pad),
     )
