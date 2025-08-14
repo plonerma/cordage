@@ -5,7 +5,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from itertools import chain, count, product
 from json.decoder import JSONDecodeError
-from math import ceil, floor, log10
+from math import floor, log10
 from os import PathLike, getpid
 from pathlib import Path
 from traceback import format_exception
@@ -606,7 +606,10 @@ class Series(Generic[ConfigClass], Experiment):
         if not self.is_singular:
             for i in self.get_effective_indices(include_skipped=include_skipped):
                 trial = self.trials[i - 1]
-                trial_subdir = str(i).zfill(ceil(log10(len(self))))
+                if self.global_config.zero_pad_trial_output_dir:
+                    trial_subdir = str(i).zfill(floor(log10(len(self))) + 1)
+                else:
+                    trial_subdir = str(i)
                 trial.metadata.output_dir = self.output_dir / trial_subdir
                 yield trial
 

@@ -1,4 +1,5 @@
 import math
+from dataclasses import replace
 
 import pytest
 from config_classes import NestedConfig as Config
@@ -31,8 +32,11 @@ def test_trial_series_list(global_config, resources_path):
         assert t.output_dir == global_config.base_output_dir / "experiment" / str(i)
 
 
+@pytest.mark.parametrize("zero_pad", (True, False))
 @pytest.mark.parametrize("letter", "abc")
-def test_more_trial_series(global_config, resources_path, letter):
+def test_more_trial_series(global_config, resources_path, letter, zero_pad):
+    global_config = replace(global_config, zero_pad_trial_output_dir=zero_pad)
+
     trial_store: list[cordage.Trial] = []
 
     def func(config: Config, cordage_trial: cordage.Trial, trial_store=trial_store):  # noqa: ARG001
@@ -41,7 +45,9 @@ def test_more_trial_series(global_config, resources_path, letter):
     config_file = resources_path / f"series_{letter}.toml"
 
     cordage.run(
-        func, args=[str(config_file), "--alpha.b", "b_incorrect"], global_config=global_config
+        func,
+        args=[str(config_file), "--alpha.b", "b_incorrect"],
+        global_config=global_config,
     )
 
     assert len(trial_store) == trial_store[0].config.alphas * trial_store[0].config.betas
@@ -54,7 +60,7 @@ def test_more_trial_series(global_config, resources_path, letter):
         assert trial.metadata.parent_dir is not None
         assert trial.metadata.parent_dir.parts[-1] == "experiment"
 
-        if len(trial_store) <= 10:
+        if len(trial_store) < 10 or not zero_pad:
             assert trial.output_dir == global_config.base_output_dir / "experiment" / f"{i}"
 
         else:
