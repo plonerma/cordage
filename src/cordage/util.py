@@ -57,7 +57,7 @@ def get_loader(extension: str) -> Callable:
 
     if extension == "toml":
         try:
-            from toml import load as toml_loader
+            from toml import load as toml_loader  # noqa: PLC0415
 
             loader = toml_loader
         except ModuleNotFoundError as exc:
@@ -66,7 +66,7 @@ def get_loader(extension: str) -> Callable:
 
     elif extension in ("yaml", "yml", "yl"):
         try:
-            from yaml import safe_load as yaml_loader
+            from yaml import safe_load as yaml_loader  # noqa: PLC0415
 
             loader = yaml_loader
         except ModuleNotFoundError as exc:
@@ -74,7 +74,7 @@ def get_loader(extension: str) -> Callable:
             raise RuntimeError(msg) from exc
     else:
         try:
-            from json import load as json_loader
+            from json import load as json_loader  # noqa: PLC0415
 
             loader = json_loader
         except ModuleNotFoundError as exc:
@@ -107,7 +107,7 @@ def get_writer(extension: str) -> Callable:
 
     if extension == "toml":
         try:
-            from toml import dump as toml_dump
+            from toml import dump as toml_dump  # noqa: PLC0415
 
             writer = toml_dump
         except ModuleNotFoundError as exc:
@@ -116,7 +116,7 @@ def get_writer(extension: str) -> Callable:
 
     elif extension in ("yaml", "yml", "yl"):
         try:
-            from yaml import dump as yaml_dump
+            from yaml import dump as yaml_dump  # noqa: PLC0415
 
             writer = yaml_dump
         except ModuleNotFoundError as exc:
@@ -124,7 +124,7 @@ def get_writer(extension: str) -> Callable:
             raise RuntimeError(msg) from exc
     else:
         try:
-            from json import dump as json_dump
+            from json import dump as json_dump  # noqa: PLC0415
 
             writer = json_dump
         except ModuleNotFoundError as exc:
