@@ -236,7 +236,9 @@ class FunctionContext(TrialIndexMixin):
         # add parser arguments from dataclass
 
         self.argument_parser = argparse.ArgumentParser(
-            description=self.description, usage=self.usage_str, allow_abbrev=False,
+            description=self.description,
+            usage=self.usage_str,
+            allow_abbrev=False,
         )
 
         self.argument_parser.add_argument(
