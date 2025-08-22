@@ -283,6 +283,9 @@ class FunctionContext(TrialIndexMixin):
         self.add_arguments_to_parser(self.main_config_cls)
 
     def _add_argument_to_parser(self, arg_name: str, arg_type: Any, help: str, **kw):  # noqa: A002
+        if get_origin(arg_type) is tuple:
+            arg_type = get_origin(arg_type)
+
         # If the field is also a dataclass, recurse (nested config)
         if dataclasses.is_dataclass(arg_type):
             assert isinstance(arg_type, type)
