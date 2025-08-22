@@ -5,8 +5,10 @@ class CordageError(Exception):
 class MissingValueError(CordageError):
     pass
 
+
 class UnexpectedDataError(CordageError):
     pass
+
 
 class InvalidValueError(CordageError):
     pass

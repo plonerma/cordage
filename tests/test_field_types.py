@@ -75,7 +75,7 @@ def test_invalid_mixed_tuple(global_config, resources_path):
 
     config_file = resources_path / "simple_e.toml"
 
-    with pytest.raises(cordage.exceptions.WrongTypeError):
+    with pytest.raises(cordage.exceptions.InvalidValueError):
         cordage.run(func, args=[str(config_file)], global_config=global_config)
 
 
