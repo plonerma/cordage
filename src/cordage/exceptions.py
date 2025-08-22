@@ -6,9 +6,9 @@ class MissingValueError(CordageError):
     pass
 
 
-class WrongTypeError(CordageError):
+class UnexpectedDataError(CordageError):
     pass
 
 
-class UnexpectedDataError(CordageError):
+class InvalidValueError(CordageError):
     pass
