@@ -5,6 +5,7 @@ import re
 import sys
 from collections.abc import Mapping
 from contextlib import contextmanager
+from enum import Enum
 from pathlib import Path
 from typing import (
     Any,
@@ -19,6 +20,7 @@ from typing import (
 
 from docstring_parser import parse as parse_docstring
 
+from cordage.exceptions import InvalidValueError
 from cordage.experiment import Experiment, Series, Status, Trial
 from cordage.global_config import GlobalConfig
 from cordage.util import (
@@ -352,6 +354,16 @@ class FunctionContext(TrialIndexMixin):
                 f"--{arg_name}", type=arg_type, default=MISSING, help=help, **kw
             )
 
+        elif issubclass(arg_type, Enum):
+            self.arg_group_config.add_argument(
+                f"--{arg_name}", type=arg_type, default=MISSING, help=help, choices=list(arg_type)
+            )
+
+        else:
+            logger.debug("Ignoring field %s: Type %s not supported.", arg_name, str(arg_type))
+
+
+
     def add_arguments_to_parser(self, config_cls: type, prefix: Optional[str] = None):
         """Add all fields in the (nested) config class to the parser.
 
@@ -440,7 +452,15 @@ class FunctionContext(TrialIndexMixin):
             args = list(args)
 
         # construct parser
-        argument_data: dict = vars(self.argument_parser.parse_args(args))
+        try:
+            argument_data: dict = vars(self.argument_parser.parse_args(args))
+        except SystemExit as e:
+            if e.code == 0:
+                raise e
+            else:
+                msg = "Passed value is invalid"
+                raise InvalidValueError(msg) from e
+
         argument_data = self.remove_missing_values(argument_data)
 
         conf_file_comment: Optional[str] = None

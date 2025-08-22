@@ -3,6 +3,7 @@ import logging
 import typing
 from collections.abc import Generator, Iterable, Mapping
 from datetime import datetime, timedelta
+from enum import Enum
 from os import PathLike
 from pathlib import Path
 from typing import (
@@ -44,7 +45,7 @@ deserialization_map: dict[type[Any], Callable[..., Any]] = {
     timedelta: lambda v: timedelta(seconds=v),
 }
 
-types_to_cast: list[type[Any]] = [Path, float, bool, int, str, tuple]
+types_to_cast: list[type[Any]] = [Path, float, bool, int, str, tuple, Enum]
 
 
 def get_loader(extension: str) -> Callable:
@@ -242,7 +243,7 @@ def from_dict(data_class: type[ConfigClass], data: Mapping, *, strict: bool = Tr
             f"Use '{e.field_path}' to specify the field via the command line or set the field in "
             "a configuration file."
         )
-        raise cordage.exceptions.WrongTypeError(msg) from e
+        raise cordage.exceptions.InvalidValueError(msg) from e
 
     except dacite.exceptions.MissingValueError as e:
         msg = (
