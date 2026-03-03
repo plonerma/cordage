@@ -179,7 +179,7 @@ def test_non_init_optional_field(global_config):
         cordage.run(func, args=["--a", "2", "--b", "3"], global_config=global_config)
 
 
-def test_enum(global_config):
+def test_str_enum(global_config):
     class Method(str, Enum):
         A = "a"
         B = "b"
@@ -192,7 +192,26 @@ def test_enum(global_config):
         assert isinstance(config.method, Method)
         assert config.method == Method.B
 
-    cordage.run(f, ["--method", "b"], config_only=True, global_config=global_config)
+    cordage.run(f, ["--method", "B"], config_only=True, global_config=global_config)
+
+    with pytest.raises(cordage.exceptions.InvalidValueError):
+        cordage.run(f, ["--method", "unkown"], config_only=True, global_config=global_config)
+
+
+def test_enum(global_config):
+    class Method(Enum):
+        A: int = 1
+        B: int = 2
+
+    @dataclass
+    class MethodConfig:
+        method: Method = Method.A
+
+    def f(config: MethodConfig):
+        assert isinstance(config.method, Method)
+        assert config.method == Method.B
+
+    cordage.run(f, ["--method", "B"], config_only=True, global_config=global_config)
 
     with pytest.raises(cordage.exceptions.InvalidValueError):
         cordage.run(f, ["--method", "unkown"], config_only=True, global_config=global_config)

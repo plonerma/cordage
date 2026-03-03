@@ -357,9 +357,21 @@ class FunctionContext(TrialIndexMixin):
                 f"--{arg_name}", type=arg_type, default=MISSING, help=help, **kw
             )
 
-        elif issubclass(arg_type, Enum):
+        elif isinstance(arg_type, type) and issubclass(arg_type, Enum):
+
+            def enum_from_string(s):
+                try:
+                    return arg_type[s]
+                except KeyError as e:
+                    msg = f"Enum {arg_type} has no value {s}"
+                    raise ValueError(msg) from e
+
             self.arg_group_config.add_argument(
-                f"--{arg_name}", type=arg_type, default=MISSING, help=help, choices=list(arg_type)
+                f"--{arg_name}",
+                type=enum_from_string,
+                default=MISSING,
+                help=help,
+                choices=list(arg_type),
             )
 
         else:
