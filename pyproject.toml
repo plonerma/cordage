@@ -3,7 +3,7 @@ name = "cordage"
 dynamic = ["version"]
 description = "Computational research data management tool"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
 keywords = []
 authors = [
@@ -75,7 +75,7 @@ serve-docs = [
 ]
 
 [[tool.hatch.envs.all.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+python = ["3.10", "3.12", "3.14"]
 
 [tool.hatch.envs.lint]
 detached = true
@@ -103,7 +103,7 @@ all = [
 # --- LINTING ---
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 99
 
 [tool.ruff.lint]
