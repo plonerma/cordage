@@ -373,7 +373,7 @@ class FunctionContext(TrialIndexMixin):
             )
 
         else:
-            logger.debug("Ignoring field %s: Type %s not supported.", arg_name, str(arg_type))
+            logger.warning("Ignoring field %s: Type %s not supported.", arg_name, str(arg_type))
 
     def add_arguments_to_parser(self, config_cls: type, prefix: str | None = None):
         """Add all fields in the (nested) config class to the parser.
