@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union
 
 import pytest
 from config_classes import LongConfig as Config
@@ -111,7 +110,7 @@ def test_non_init_union_field(global_config):
     @dataclass
     class NonInitConfig:
         a: int
-        b: Union[float, int, None] = field(init=False)
+        b: float | int | None = field(init=False)
 
         def __post_init__(self):
             if self.a > 4:
@@ -163,7 +162,7 @@ def test_non_init_optional_field(global_config):
     @dataclass
     class NonInitConfig:
         a: int
-        b: Optional[float] = field(init=False)
+        b: float | None = field(init=False)
 
         def __post_init__(self):
             self.b = float(self.a)

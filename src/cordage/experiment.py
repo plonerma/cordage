@@ -1,6 +1,6 @@
 import logging
 import shutil
-from collections.abc import Generator, Iterable
+from collections.abc import Generator, Iterable, Iterator
 from copy import deepcopy
 from datetime import datetime, timezone
 from itertools import chain, count, product
@@ -13,9 +13,7 @@ from typing import (
     Any,
     Generic,
     Literal,
-    Optional,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -24,7 +22,7 @@ from dacite import DaciteError
 try:
     import colorlog
 except ImportError:
-    colorlog = None  # type: ignore
+    colorlog = None
 
 import typing
 
@@ -48,10 +46,10 @@ ConfigClass = TypeVar("ConfigClass", bound="DataclassInstance")
 
 
 class Experiment(Annotatable):
-    def __init__(self, *args, config_cls: Optional[type] = None, **kwargs):
+    def __init__(self, *args, config_cls: type | None = None, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.config_cls = config_cls
+        self.config_cls: type[ConfigClass] | None = config_cls
         self.log_handlers: list[logging.Handler] = []
 
     def __repr__(self):
@@ -61,7 +59,7 @@ class Experiment(Annotatable):
             return f"{self.__class__.__name__} (status: {self.status})"
 
     @property
-    def log_path(self):
+    def log_path(self) -> Path:
         return self.output_dir / self.global_config.logging_filename
 
     @property
@@ -158,7 +156,7 @@ class Experiment(Annotatable):
         cls,
         path: PathLike,
         *,
-        config_cls: Optional[type[ConfigClass]] = None,
+        config_cls: type[ConfigClass] | None = None,
         load_series_trials: bool = True,
     ):
         metadata: Metadata = cls.load_metadata(path)
@@ -171,6 +169,7 @@ class Experiment(Annotatable):
             experiment = Series(metadata, config_cls=config_cls)
             if load_series_trials:
                 for trial in experiment:
+                    assert trial.metadata.output_dir is not None
                     if trial.metadata.output_dir.exists():
                         trial.load_data()
 
@@ -180,7 +179,7 @@ class Experiment(Annotatable):
 
     @classmethod
     def all_from_path(
-        cls, results_path: Union[str, PathLike], *, skip_hidden: bool = True
+        cls, results_path: str | PathLike, *, skip_hidden: bool = True
     ) -> list["Experiment"]:
         """Load all experiments from the results_path."""
         results_path = Path(results_path)
@@ -304,10 +303,10 @@ class Experiment(Annotatable):
 class Trial(Experiment, Generic[ConfigClass]):
     def __init__(
         self,
-        metadata: Optional[Metadata] = None,
+        metadata: Metadata | None = None,
         /,
-        config: Optional[dict[str, Any]] = None,
-        config_cls=None,
+        config: dict[str, Any] | None = None,
+        config_cls: type[ConfigClass] | None = None,
         **kw,
     ):
         if metadata is not None:
@@ -319,7 +318,7 @@ class Trial(Experiment, Generic[ConfigClass]):
         else:
             super().__init__(configuration=config, config_cls=config_cls, **kw)
 
-        self._config: Optional[ConfigClass] = None
+        self._config: ConfigClass | None = None
 
     @property
     def config(self) -> ConfigClass:
@@ -355,9 +354,8 @@ class Trial(Experiment, Generic[ConfigClass]):
             if output_dir_type is not None:
                 self.metadata.configuration["output_dir"] = path
 
-                # Config has attribute output_dir, mypy does not know it
                 if self._config is not None:
-                    self.config.output_dir = output_dir_type(path)  # type: ignore
+                    self.config.output_dir = output_dir_type(path)
 
 
 class Series(Generic[ConfigClass], Experiment):
@@ -365,11 +363,11 @@ class Series(Generic[ConfigClass], Experiment):
 
     def __init__(
         self,
-        metadata: Optional[Metadata] = None,
+        metadata: Metadata | None = None,
         /,
-        base_config: Optional[dict[str, Any]] = None,
-        series_spec: Union[list[dict], dict[str, list], None] = None,
-        trial_indices: Optional[TrialIndices] = None,
+        base_config: dict[str, Any] | None = None,
+        series_spec: list[dict] | dict[str, list] | None = None,
+        trial_indices: TrialIndices | None = None,
         config_cls=None,
         **kw,
     ):
@@ -428,12 +426,12 @@ class Series(Generic[ConfigClass], Experiment):
         return self.metadata.configuration["base_config"]
 
     @property
-    def series_spec(self) -> Union[list[dict], dict[str, list], None]:
+    def series_spec(self) -> list[dict] | dict[str, list] | None:
         return self.metadata.configuration["series_spec"]
 
     @property
     def series_skip(self) -> int:
-        skip: Optional[int] = self.metadata.configuration.get("series_skip", None)
+        skip: int | None = self.metadata.configuration.get("series_skip", None)
 
         if skip is None:
             return 0
@@ -455,9 +453,9 @@ class Series(Generic[ConfigClass], Experiment):
             super().__enter__()
         # else: do nothing
 
-    def __exit__(self, *args):
+    def __exit__(self, *args, **kw):
         if not self.is_singular:
-            super().__exit__(*args)
+            super().__exit__(*args, **kw)
         # else: do nothing
 
     @overload
@@ -466,9 +464,7 @@ class Series(Generic[ConfigClass], Experiment):
     @overload
     def get_changing_fields(self, sep: str) -> set[str]: ...
 
-    def get_changing_fields(
-        self, sep: Optional[str] = None
-    ) -> Union[set[tuple[Any, ...]], set[str]]:
+    def get_changing_fields(self, sep: str | None = None) -> set[tuple[Any, ...]] | set[str]:
         keys: set = set()
 
         if isinstance(self.series_spec, list):
@@ -486,10 +482,10 @@ class Series(Generic[ConfigClass], Experiment):
         if isinstance(self.series_spec, list):
             yield from self.series_spec
         elif isinstance(self.series_spec, dict):
-            keys, values = zip(*flattened_items(self.series_spec, sep="."))
+            keys, values = zip(*flattened_items(self.series_spec, sep="."), strict=False)
 
             for update_values in product(*values):
-                yield nest_items(zip(keys, update_values))
+                yield nest_items(zip(keys, update_values, strict=False))
         else:
             yield {}
 
@@ -564,19 +560,19 @@ class Series(Generic[ConfigClass], Experiment):
                 )
                 self.trials.append(trial)
 
-    def __iter__(self):
-        return self.get_all_trials(include_skipped=False)
+    def __iter__(self) -> Iterator[Trial]:
+        return iter(self.get_all_trials(include_skipped=False))
 
     def get_effective_indices(self, *, include_skipped=False) -> list[int]:
         if include_skipped:
             return list(range(1, len(self) + 1))
 
-        entries: Optional[TrialIndices] = self.metadata.configuration.get("trial_indices", None)
+        entries: TrialIndices | None = self.metadata.configuration.get("trial_indices", None)
 
         if not entries:
             return list(range(1, len(self) + 1))
 
-        indices: list[Union[Iterable[int]]] = []
+        indices: list[Iterable[int]] = []
 
         entry: TrialIndicesEntry
         for entry in entries:
