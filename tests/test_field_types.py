@@ -214,3 +214,17 @@ def test_enum(global_config):
 
     with pytest.raises(cordage.exceptions.InvalidValueError):
         cordage.run(f, ["--method", "unkown"], config_only=True, global_config=global_config)
+
+
+def test_optional(global_config):
+    @dataclass
+    class Config:
+        a: int | None = None
+
+    def f(config: Config):
+        assert config.a == 1
+
+    cordage.run(f, ["--a", "1"], config_only=True, global_config=global_config)
+
+    with pytest.raises(cordage.exceptions.InvalidValueError):
+        cordage.run(f, ["--a", "unkown"], config_only=True, global_config=global_config)

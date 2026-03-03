@@ -7,6 +7,7 @@ from collections.abc import Callable, Mapping
 from contextlib import contextmanager
 from enum import Enum
 from pathlib import Path
+from types import UnionType
 from typing import (
     Any,
     ClassVar,
@@ -315,7 +316,7 @@ class FunctionContext(TrialIndexMixin):
                 **kw,
             )
 
-        elif get_origin(arg_type) is Union:
+        elif get_origin(arg_type) in (Union, UnionType):
             args = [arg for arg in get_args(arg_type) if arg is not type(None)]
 
             if len(args) == 1:
