@@ -356,6 +356,7 @@ class FunctionContext(TrialIndexMixin):
             )
 
         elif isinstance(arg_type, type) and issubclass(arg_type, Enum):
+
             def enum_from_string(s):
                 try:
                     return arg_type[s]

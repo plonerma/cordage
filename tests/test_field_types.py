@@ -199,8 +199,8 @@ def test_str_enum(global_config):
 
 def test_enum(global_config):
     class Method(Enum):
-        A: int = 1
-        B: int = 2
+        A = 1
+        B = 2
 
     @dataclass
     class MethodConfig:
