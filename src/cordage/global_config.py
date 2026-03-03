@@ -72,7 +72,7 @@ class GlobalConfig:
             return config_from_dict(cls, global_config)
 
         # Path: load configuration file from this path
-        elif isinstance(global_config, (str, Path)):
+        elif isinstance(global_config, str | Path):
             global_config = Path(global_config)
             if not global_config.exists():
                 msg = f"Given cordage configuration path ({global_config}) does not exist."
