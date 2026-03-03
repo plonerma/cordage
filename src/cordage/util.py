@@ -304,7 +304,7 @@ def to_dict(data: ConfigClass | Mapping) -> dict:
     mapping: Mapping
 
     if dataclasses.is_dataclass(data):
-        mapping = dataclasses.asdict(data)
+        mapping = dataclasses.asdict(cast(DataclassInstance, data))
     else:
         mapping = cast(Mapping, data)
 

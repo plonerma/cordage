@@ -14,7 +14,7 @@ from typing import (
 try:
     import colorlog
 except ImportError:
-    colorlog = None  # type: ignore
+    colorlog = None
 
 import typing
 from enum import Enum

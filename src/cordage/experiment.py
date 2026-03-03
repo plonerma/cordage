@@ -1,6 +1,6 @@
 import logging
 import shutil
-from collections.abc import Generator, Iterable
+from collections.abc import Generator, Iterable, Iterator
 from copy import deepcopy
 from datetime import datetime, timezone
 from itertools import chain, count, product
@@ -22,7 +22,7 @@ from dacite import DaciteError
 try:
     import colorlog
 except ImportError:
-    colorlog = None  # type: ignore
+    colorlog = None
 
 import typing
 
@@ -49,7 +49,7 @@ class Experiment(Annotatable):
     def __init__(self, *args, config_cls: type | None = None, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.config_cls = config_cls
+        self.config_cls: type[ConfigClass] | None = config_cls
         self.log_handlers: list[logging.Handler] = []
 
     def __repr__(self):
@@ -59,7 +59,7 @@ class Experiment(Annotatable):
             return f"{self.__class__.__name__} (status: {self.status})"
 
     @property
-    def log_path(self):
+    def log_path(self) -> Path:
         return self.output_dir / self.global_config.logging_filename
 
     @property
@@ -169,6 +169,7 @@ class Experiment(Annotatable):
             experiment = Series(metadata, config_cls=config_cls)
             if load_series_trials:
                 for trial in experiment:
+                    assert trial.metadata.output_dir is not None
                     if trial.metadata.output_dir.exists():
                         trial.load_data()
 
@@ -305,7 +306,7 @@ class Trial(Experiment, Generic[ConfigClass]):
         metadata: Metadata | None = None,
         /,
         config: dict[str, Any] | None = None,
-        config_cls=None,
+        config_cls: type[ConfigClass] | None = None,
         **kw,
     ):
         if metadata is not None:
@@ -353,9 +354,8 @@ class Trial(Experiment, Generic[ConfigClass]):
             if output_dir_type is not None:
                 self.metadata.configuration["output_dir"] = path
 
-                # Config has attribute output_dir, mypy does not know it
                 if self._config is not None:
-                    self.config.output_dir = output_dir_type(path)  # type: ignore
+                    self.config.output_dir = output_dir_type(path)
 
 
 class Series(Generic[ConfigClass], Experiment):
@@ -453,9 +453,9 @@ class Series(Generic[ConfigClass], Experiment):
             super().__enter__()
         # else: do nothing
 
-    def __exit__(self, *args):
+    def __exit__(self, *args, **kw):
         if not self.is_singular:
-            super().__exit__(*args)
+            super().__exit__(*args, **kw)
         # else: do nothing
 
     @overload
@@ -560,8 +560,8 @@ class Series(Generic[ConfigClass], Experiment):
                 )
                 self.trials.append(trial)
 
-    def __iter__(self):
-        return self.get_all_trials(include_skipped=False)
+    def __iter__(self) -> Iterator[Trial]:
+        return iter(self.get_all_trials(include_skipped=False))
 
     def get_effective_indices(self, *, include_skipped=False) -> list[int]:
         if include_skipped:

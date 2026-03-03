@@ -222,7 +222,7 @@ class FunctionContext(TrialIndexMixin):
     def set_function(self, func: Callable):
         self._func = func
         self._func_parameters = inspect.signature(func).parameters
-        self._func_name = self.func.__name__
+        self._func_name = getattr(self.func, "__name__", "unnamed-function")
 
         if self.global_config.param_name_config not in self.func_parameters:
             msg = (
@@ -465,12 +465,7 @@ class FunctionContext(TrialIndexMixin):
         conf_file_comment: str | None = None
         cli_series_comment: str | None = None
 
-        series_kw = {
-            "function": self.func_name,
-            "global_config": self.global_config,
-            "status": Status.PENDING,
-            "additional_info": {"description": self.description, "parsed_arguments": args},
-        }
+        series_kw = {}
 
         if not self.global_config.config_only:
             cli_series_comment = argument_data.pop(
@@ -480,14 +475,15 @@ class FunctionContext(TrialIndexMixin):
 
         config_path = argument_data.pop(".", None)
 
-        argument_data = nest_items(argument_data.items())
+        argument_data: dict[str, Any] | None = nest_items(argument_data.items())
+        series_spec: list[dict] | dict[str, list] | None
 
         if config_path is not None:
             new_conf_data = read_dict_from_file(config_path)
 
             new_conf_data = nest_items(new_conf_data.items())
 
-            series_kw["series_spec"] = new_conf_data.pop(self.global_config._series_spec_key, None)
+            series_spec = new_conf_data.pop(self.global_config._series_spec_key, None)
 
             nested_update(new_conf_data, argument_data)
 
@@ -501,15 +497,27 @@ class FunctionContext(TrialIndexMixin):
                     self.global_config._experiment_comment_key, None
                 )
         else:
-            series_kw["series_spec"] = None
+            series_spec = None
 
         # series skip might be given via the command line
         # ("--series-skip <n>") or a config file "__series-skip__"
-        series_kw["trial_indices"] = argument_data.pop(self.global_config._trial_indices_key, None)
-        series_kw["base_config"] = argument_data
-        series_kw["config_cls"] = self.main_config_cls
+        trial_indices: TrialIndices | None = argument_data.pop(
+            self.global_config._trial_indices_key, None
+        )
+        base_config: dict[str, Any] | None = argument_data
+        config_cls = self.main_config_cls
 
-        series: Series = Series(**series_kw)
+        series: Series = Series(
+            series_spec=series_spec,
+            trial_indices=trial_indices,
+            base_config=base_config,
+            config_cls=config_cls,
+            function=self.func_name,
+            global_config=self.global_config,
+            status=Status.PENDING,
+            additional_info={"description": self.description, "parsed_arguments": args},
+            **series_kw,
+        )
 
         if not self.global_config.config_only:
             if cli_series_comment is not None and conf_file_comment is not None:

@@ -80,11 +80,12 @@ python = ["3.10", "3.12", "3.14"]
 [tool.hatch.envs.lint]
 detached = true
 dependencies = [
-  "mypy>=1.7.0",
+  "ty>=0.0.17",
   "ruff>=0.12.8",
 ]
 [tool.hatch.envs.lint.scripts]
-typing = "mypy --install-types --non-interactive {args:src/cordage tests}"
+typing = "ty check {args:src/cordage tests}"
+typing-github = "ty check {args:src/cordage tests} --output-format github"
 style = [
   "ruff format --check {args:.}",
   "ruff check {args:.}",
@@ -169,10 +170,8 @@ ban-relative-imports = "all"
 
 # --- TYPE CHECKING ---
 
-[tool.mypy]
-ignore_missing_imports = true
-check_untyped_defs = true
-
+[tool.ty]
+rules.unresolved-import = "ignore"
 
 # --- TEST COVERAGE ---
 

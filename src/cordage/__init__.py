@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from os import PathLike
 
-import cordage.exceptions
+from cordage import exceptions
 from cordage.context import FunctionContext
 from cordage.experiment import Experiment, Metadata, Series, Status, Trial
 from cordage.global_config import GlobalConfig
@@ -32,7 +32,7 @@ def run(
         experiment = context.parse_args(args)
         context.execute(experiment)
         return experiment
-    except cordage.exceptions.CordageError as e:
+    except exceptions.CordageError as e:
         if _global_config.catch_exception:
             logger.critical(str(e))
             sys.exit(1)
@@ -48,5 +48,6 @@ __all__ = [
     "Series",
     "Status",
     "Trial",
+    "exceptions",
     "run",
 ]
