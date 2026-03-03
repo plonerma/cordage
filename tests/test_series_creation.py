@@ -23,7 +23,7 @@ def test_trial_series_list(global_config, resources_path):
 
     assert series.get_changing_fields() == {("alpha", "a"), ("alpha", "b"), ("beta", "a")}
 
-    for i, t in zip(range(1, 6), trial_store):
+    for i, t in zip(range(1, 6), trial_store, strict=False):
         assert t.metadata.additional_info["trial_index"] == i
         assert t.config.alpha.a == i
         assert t.config.alpha.b == f"b{i}"
@@ -99,7 +99,7 @@ def test_partial_series_execution(global_config, resources_path, expected_trials
 
     assert len(trial_store) == len(expected_trials)
 
-    for i, t in zip(expected_trials, trial_store):
+    for i, t in zip(expected_trials, trial_store, strict=False):
         assert t.metadata.additional_info["trial_index"] == i
         assert t.config.alpha.a == i
         assert t.config.alpha.b == f"b{i}"

@@ -3,16 +3,14 @@ import dataclasses
 import inspect
 import re
 import sys
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from contextlib import contextmanager
 from enum import Enum
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
     ClassVar,
     Literal,
-    Optional,
     Union,
     get_args,
     get_origin,
@@ -71,7 +69,7 @@ class ExperimentStack(metaclass=Singleton):
         """Pop the currently running experiment from the stack."""
         return self.running.pop()
 
-    def peek(self) -> Optional[Experiment]:
+    def peek(self) -> Experiment | None:
         """Get the currently active experiment from the stack.
 
         If the stack is empty, None is returned.
@@ -81,7 +79,7 @@ class ExperimentStack(metaclass=Singleton):
         else:
             return None
 
-    def peek_dir(self) -> Optional[Path]:
+    def peek_dir(self) -> Path | None:
         """Get the output_dir of the currently running experiment.
 
         If the stack is empty, None is returned.
@@ -127,7 +125,7 @@ class TrialIndexMixin:
     def match_trial_range_entry(
         self,
         value,
-    ) -> Union[int, tuple[Optional[int], Optional[int]]]:
+    ) -> int | tuple[int | None, int | None]:
         match = self.trial_index_pattern.match(value.strip())
         if not match:
             msg = (
@@ -172,8 +170,8 @@ class FunctionContext(TrialIndexMixin):
         self,
         func: Callable,  # expects a dataclass
         global_config: GlobalConfig,
-        description: Optional[str] = None,
-        config_cls: Optional[type[ConfigClass]] = None,
+        description: str | None = None,
+        config_cls: type[ConfigClass] | None = None,
     ):
         self.global_config = global_config
         self.set_function(func)
@@ -181,7 +179,7 @@ class FunctionContext(TrialIndexMixin):
         self.set_description(description)
         self.construct_argument_parser()
 
-    def set_description(self, description: Optional[str] = None):
+    def set_description(self, description: str | None = None):
         if description is None:
             if self.func.__doc__ is not None:
                 self.description = parse_docstring(self.func.__doc__).short_description
@@ -191,7 +189,7 @@ class FunctionContext(TrialIndexMixin):
         else:
             self.description = description
 
-    def set_config_cls(self, config_cls: Optional[type] = None):
+    def set_config_cls(self, config_cls: type | None = None):
         # derive configuration class
         if config_cls is None:
             self.main_config_cls = self.func_parameters[
@@ -357,7 +355,7 @@ class FunctionContext(TrialIndexMixin):
                 f"--{arg_name}", type=arg_type, default=MISSING, help=help, **kw
             )
 
-        elif issubclass(arg_type, Enum):
+        elif isinstance(arg_type, type) and issubclass(arg_type, Enum):
             self.arg_group_config.add_argument(
                 f"--{arg_name}", type=arg_type, default=MISSING, help=help, choices=list(arg_type)
             )
@@ -365,7 +363,7 @@ class FunctionContext(TrialIndexMixin):
         else:
             logger.debug("Ignoring field %s: Type %s not supported.", arg_name, str(arg_type))
 
-    def add_arguments_to_parser(self, config_cls: type, prefix: Optional[str] = None):
+    def add_arguments_to_parser(self, config_cls: type, prefix: str | None = None):
         """Add all fields in the (nested) config class to the parser.
 
         Recursively iterate over the fields adding arguments to the
@@ -432,7 +430,7 @@ class FunctionContext(TrialIndexMixin):
 
         return func_kw
 
-    def parse_args(self, args: Optional[list[str]] = None) -> Experiment:
+    def parse_args(self, args: list[str] | None = None) -> Experiment:
         """Parse the command line arguments.
 
         Args:
@@ -464,8 +462,8 @@ class FunctionContext(TrialIndexMixin):
 
         argument_data = self.remove_missing_values(argument_data)
 
-        conf_file_comment: Optional[str] = None
-        cli_series_comment: Optional[str] = None
+        conf_file_comment: str | None = None
+        cli_series_comment: str | None = None
 
         series_kw = {
             "function": self.func_name,
@@ -531,8 +529,8 @@ class FunctionContext(TrialIndexMixin):
         config=None,
         base_config=None,
         series_spec=None,
-        trial_indices: Optional[TrialIndices] = None,
-        comment: Optional[str] = None,
+        trial_indices: TrialIndices | None = None,
+        comment: str | None = None,
     ) -> Experiment:
         _usage = "Either pass `config` or `base_config` and `series_spec`"
 

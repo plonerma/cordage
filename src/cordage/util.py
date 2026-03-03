@@ -1,18 +1,15 @@
 import dataclasses
 import logging
 import typing
-from collections.abc import Generator, Iterable, Mapping
+from collections.abc import Callable, Generator, Iterable, Mapping
 from datetime import datetime, timedelta
 from enum import Enum
 from os import PathLike
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
     Literal,
-    Optional,
     TypeVar,
-    Union,
     cast,
     overload,
 )
@@ -28,7 +25,7 @@ import cordage.exceptions
 logger = logging.getLogger("cordage")
 
 
-TrialIndicesEntry = Union[tuple[Optional[int], Optional[int]], int]
+TrialIndicesEntry = tuple[int | None, int | None] | int
 TrialIndices = list[TrialIndicesEntry]
 
 
@@ -41,7 +38,7 @@ serialization_map: dict[type[Any], Callable[..., Any]] = {
 }
 
 deserialization_map: dict[type[Any], Callable[..., Any]] = {
-    datetime: lambda v: datetime.fromisoformat(v),
+    datetime: datetime.fromisoformat,
     timedelta: lambda v: timedelta(seconds=v),
 }
 
@@ -165,9 +162,9 @@ def flattened_items(
 def flattened_items(
     nested_dict: dict,
     *,
-    sep: Optional[str] = None,
+    sep: str | None = None,
     prefix: tuple[Any, ...] = (),
-) -> Generator[Union[tuple[str, Any], tuple[tuple[Any, ...], Any]], None, None]:
+) -> Generator[tuple[str, Any] | tuple[tuple[Any, ...], Any], None, None]:
     """Iter over all items in a nested dictionary."""
     for k, v in nested_dict.items():
         flat_k: tuple = (
@@ -198,7 +195,7 @@ def nested_update(target_dict: dict, update_dict: Mapping):
     return target_dict
 
 
-def nest_items(flat_items: Iterable[tuple[Union[str, tuple[Any, ...]], Any]]) -> dict[str, Any]:
+def nest_items(flat_items: Iterable[tuple[str | tuple[Any, ...], Any]]) -> dict[str, Any]:
     """Unflatten a dict.
 
     If any keys contain '.', sub-dicts will be created.
@@ -302,7 +299,7 @@ def set_nested_field(dataclass_instance, field_name: str, value: Any):
     setattr(obj, last_key, value)
 
 
-def to_dict(data: Union[ConfigClass, Mapping]) -> dict:
+def to_dict(data: ConfigClass | Mapping) -> dict:
     """Represent the fields and values of configuration as a dict."""
     mapping: Mapping
 
@@ -321,7 +318,7 @@ def to_file(dataclass_instance, path: PathLike):
 
 def config_output_dir_type(
     config_cls: type["DataclassInstance"], param_name_output_dir: str
-) -> Union[type[str], type[Path], None]:
+) -> type[str] | type[Path] | None:
     for field in dataclasses.fields(config_cls):
         if field.name == param_name_output_dir:
             if field.type in (str, "str"):

@@ -8,7 +8,6 @@ from os import PathLike
 from pathlib import Path
 from typing import (
     Any,
-    Optional,
     TypeVar,
 )
 
@@ -60,15 +59,15 @@ class Metadata:
 
     configuration: dict[str, Any]
 
-    output_dir: Optional[Path] = None
+    output_dir: Path | None = None
     status: Status = Status.UNKOWN
 
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
 
     result: Any = None
 
-    parent_dir: Optional[Path] = None
+    parent_dir: Path | None = None
 
     additional_info: dict = field(default_factory=dict)
 
@@ -96,9 +95,9 @@ class Metadata:
 class MetadataStore:
     def __init__(
         self,
-        metadata: Optional[Metadata] = None,
+        metadata: Metadata | None = None,
         /,
-        global_config: Optional[GlobalConfig] = None,
+        global_config: GlobalConfig | None = None,
         **kw,
     ):
         self.metadata: Metadata
@@ -128,7 +127,7 @@ class MetadataStore:
             return self.metadata.output_dir
 
     @property
-    def parent_dir(self) -> Optional[Path]:
+    def parent_dir(self) -> Path | None:
         return self.metadata.parent_dir
 
     def set_output_dir(self, path: Path):

@@ -1,8 +1,8 @@
 import logging
 import sys
+from collections.abc import Callable
 from dataclasses import replace
 from os import PathLike
-from typing import Callable, Optional, Union
 
 import cordage.exceptions
 from cordage.context import FunctionContext
@@ -14,11 +14,11 @@ logger = logging.getLogger("cordage")
 
 def run(
     func: Callable,
-    args: Optional[list[str]] = None,
+    args: list[str] | None = None,
     *,
-    description: Optional[str] = None,
-    config_cls: Optional[type] = None,
-    global_config: Union[PathLike, dict, GlobalConfig, None] = None,
+    description: str | None = None,
+    config_cls: type | None = None,
+    global_config: PathLike | dict | GlobalConfig | None = None,
     **kw,
 ) -> Experiment:
     try:
