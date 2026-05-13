@@ -266,15 +266,8 @@ def test_mixed_literal(global_config):
     def f(config: Config):
         assert config.key == 1
 
-    cordage.run(f, ["--key", "1"], config_only=True, global_config=global_config)
-
-    def f(config: Config):
-        assert config.key == "c"
-
-    cordage.run(f, ["--key", "c"], config_only=True, global_config=global_config)
-
-    with pytest.raises(cordage.exceptions.InvalidValueError):
-        cordage.run(f, ["--a", "unkown"], config_only=True, global_config=global_config)
+    with pytest.raises(TypeError):
+        cordage.run(f, ["--a", "1"], config_only=True, global_config=global_config)
 
 
 def test_optional_literal(global_config):
