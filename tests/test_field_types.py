@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import Literal
 
 import pytest
 from config_classes import LongConfig as Config
@@ -228,3 +229,63 @@ def test_optional(global_config):
 
     with pytest.raises(cordage.exceptions.InvalidValueError):
         cordage.run(f, ["--a", "unkown"], config_only=True, global_config=global_config)
+
+
+def test_string_literal_union(global_config):
+    @dataclass
+    class Config:
+        key: Literal["a"] | Literal["b"] | Literal["C"]
+
+    def f(config: Config):
+        assert config.key == "a"
+
+    cordage.run(f, ["--key", "a"], config_only=True, global_config=global_config)
+
+    with pytest.raises(cordage.exceptions.InvalidValueError):
+        cordage.run(f, ["--key", "unkown"], config_only=True, global_config=global_config)
+
+
+def test_string_literal_set(global_config):
+    @dataclass
+    class Config:
+        key: Literal["a", "b", "C"]
+
+    def f(config: Config):
+        assert config.key == "a"
+
+    cordage.run(f, ["--key", "a"], config_only=True, global_config=global_config)
+
+    with pytest.raises(cordage.exceptions.InvalidValueError):
+        cordage.run(f, ["--key", "unkown"], config_only=True, global_config=global_config)
+
+def test_mixed_literal(global_config):
+    @dataclass
+    class Config:
+        key: Literal["a"] | Literal[1] | Literal["c"]
+
+    def f(config: Config):
+        assert config.key == 1
+
+    cordage.run(f, ["--key", "1"], config_only=True, global_config=global_config)
+
+    def f(config: Config):
+        assert config.key == "c"
+
+    cordage.run(f, ["--key", "c"], config_only=True, global_config=global_config)
+
+    with pytest.raises(cordage.exceptions.InvalidValueError):
+        cordage.run(f, ["--a", "unkown"], config_only=True, global_config=global_config)
+
+
+def test_optional_literal(global_config):
+    @dataclass
+    class Config:
+        key: Literal["a"] | Literal["b"] | None
+
+    def f(config: Config):
+        assert config.key is None
+
+    cordage.run(f, [], config_only=True, global_config=global_config)
+
+    with pytest.raises(cordage.exceptions.InvalidValueError):
+        cordage.run(f, ["--key", "unkown"], config_only=True, global_config=global_config)
