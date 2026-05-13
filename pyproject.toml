@@ -80,7 +80,7 @@ python = ["3.10", "3.12", "3.14"]
 [tool.hatch.envs.lint]
 detached = true
 dependencies = [
-  "ty>=0.0.17",
+  "ty>=0.0.35",
   "ruff>=0.12.8",
 ]
 [tool.hatch.envs.lint.scripts]
