@@ -283,3 +283,25 @@ def test_optional_literal(global_config):
 
     with pytest.raises(cordage.exceptions.InvalidValueError):
         cordage.run(f, ["--key", "unkown"], config_only=True, global_config=global_config)
+
+
+def test_union(global_config, capfd):
+    @dataclass
+    class Config:
+        ambigous_union: str | int | None = None
+        clear_union: str | None = None
+
+    def f(config: Config):
+        pass
+
+    cordage.run(f, [], config_only=True, global_config=global_config)
+
+    with pytest.raises(SystemExit):
+        cordage.run(
+            f, args=["--help"], global_config=global_config,
+        )
+
+    out, _ = capfd.readouterr()
+
+    assert "ambigous_union" not in out
+    assert "clear_union" in out
