@@ -287,8 +287,6 @@ class FunctionContext(TrialIndexMixin):
         arg_name: str,
         arg_type: Any,
         help: str,  # noqa: A002
-        *,
-        has_default: bool,
         **kw,
     ):
         if get_origin(arg_type) is tuple:
@@ -313,16 +311,12 @@ class FunctionContext(TrialIndexMixin):
             literal_arg_type = type(choices[0])
 
             if any(not isinstance(c, literal_arg_type) for c in choices):
-                msg = f"If Literal is used, all values must be of the same type ({arg_name})."
-
-                if has_default:
-                    logger.warning(msg + " Field will be excluded from CLI options.")
-                else:
-                    msg += (
-                        " Set a default value to still use the dataclass (setting the field"
-                        " through the CLI will not be possible)."
-                    )
-                    raise TypeError(msg)
+                logger.warning(
+                    "If Literal is used, all values must be of the same type (%s). Field will be "
+                    "excluded from CLI options.",
+                    arg_name,
+                )
+                return
 
             self.arg_group_config.add_argument(
                 f"--{arg_name}",
@@ -339,26 +333,19 @@ class FunctionContext(TrialIndexMixin):
 
             if len(args) == 1:
                 # optional
-                return self._add_argument_to_parser(arg_name, args[0], help=help, has_default=has_default, **kw)
+                return self._add_argument_to_parser(arg_name, args[0], help=help, **kw)
 
             elif all(get_origin(a) is Literal for a in args):
                 new_arg_type = Literal[tuple(chain(*(get_args(lit) for lit in args)))]  # ty: ignore[invalid-type-form]
 
-                return self._add_argument_to_parser(arg_name, new_arg_type, help=help, has_default=has_default, **kw)
+                return self._add_argument_to_parser(arg_name, new_arg_type, help=help, **kw)
 
             else:
-                msg = (
-                    f"`{arg_name}` has Union annotation with more than one type (other than none)."
+                logger.warning(
+                    "`%s` has Union annotation with more than one type (other than none). Field "
+                    "will be excluded from CLI options.",
+                    arg_name,
                 )
-
-                if has_default:
-                    logger.warning(msg + " Field will be excluded from CLI options.")
-                else:
-                    msg += (
-                        " Set a default value to still use the dataclass (setting the field"
-                        " through the CLI will not be possible)."
-                    )
-                    raise TypeError(msg)
 
                 return
 
@@ -408,16 +395,12 @@ class FunctionContext(TrialIndexMixin):
             return
 
         else:
-            msg: str = f"Field `{arg_name}` us unsupported type: {arg_type}."
+            logger.warning(
+                "Field `%s` us unsupported type: %s. Field will be excluded from CLI options.",
+                arg_name,
+                str(arg_type),
+            )
 
-            if has_default:
-                logger.warning(msg + " Field will be excluded from CLI options.")
-            else:
-                msg += (
-                    " Set a default value to still use the dataclass (setting the field"
-                    " through the CLI will not be possible)."
-                )
-                raise TypeError(msg)
             return
 
     def add_arguments_to_parser(self, config_cls: type, prefix: str | None = None):
@@ -456,7 +439,6 @@ class FunctionContext(TrialIndexMixin):
             self._add_argument_to_parser(
                 arg_name,
                 field.type,
-                has_default=field.default is not dataclasses.MISSING,
                 help=help_text,
             )
 

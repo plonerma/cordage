@@ -262,13 +262,12 @@ def test_string_literal_set(global_config):
 def test_mixed_literal(global_config):
     @dataclass
     class Config:
-        key: Literal["a"] | Literal[1] | Literal["c"]
+        key: Literal["a"] | Literal[1] | Literal["c"] = 1
 
     def f(config: Config):
         assert config.key == 1
 
-    with pytest.raises(TypeError):
-        cordage.run(f, ["--a", "1"], config_only=True, global_config=global_config)
+    cordage.run(f, [], config_only=True, global_config=global_config)
 
 
 def test_optional_literal(global_config):
@@ -298,7 +297,9 @@ def test_union(global_config, capfd):
 
     with pytest.raises(SystemExit):
         cordage.run(
-            f, args=["--help"], global_config=global_config,
+            f,
+            args=["--help"],
+            global_config=global_config,
         )
 
     out, _ = capfd.readouterr()
