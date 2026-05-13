@@ -6,6 +6,7 @@ import sys
 from collections.abc import Callable, Mapping
 from contextlib import contextmanager
 from enum import Enum
+from itertools import chain
 from pathlib import Path
 from types import UnionType
 from typing import (
@@ -16,7 +17,6 @@ from typing import (
     get_args,
     get_origin,
 )
-from itertools import chain
 
 from docstring_parser import parse as parse_docstring
 
@@ -325,7 +325,7 @@ class FunctionContext(TrialIndexMixin):
                 return self._add_argument_to_parser(arg_name, args[0], help=help, **kw)
 
             elif all(get_origin(a) is Literal for a in args):
-                new_arg_type = Literal[tuple(chain(*(get_args(lit) for lit in args)))]
+                new_arg_type = Literal[tuple(chain(*(get_args(lit) for lit in args)))]  # ty: ignore[invalid-type-form]
 
                 return self._add_argument_to_parser(arg_name, new_arg_type, help=help, **kw)
 

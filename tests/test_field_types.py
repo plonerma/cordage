@@ -258,6 +258,7 @@ def test_string_literal_set(global_config):
     with pytest.raises(cordage.exceptions.InvalidValueError):
         cordage.run(f, ["--key", "unkown"], config_only=True, global_config=global_config)
 
+
 def test_mixed_literal(global_config):
     @dataclass
     class Config:
