@@ -311,7 +311,7 @@ class FunctionContext(TrialIndexMixin):
             literal_arg_type = type(choices[0])
 
             if any(not isinstance(c, literal_arg_type) for c in choices):
-                logger.warning(
+                logger.info(
                     "If Literal is used, all values must be of the same type (%s). Field will be "
                     "excluded from CLI options.",
                     arg_name,
@@ -341,7 +341,7 @@ class FunctionContext(TrialIndexMixin):
                 return self._add_argument_to_parser(arg_name, new_arg_type, help=help, **kw)
 
             else:
-                logger.warning(
+                logger.info(
                     "`%s` has Union annotation with more than one type (other than none). Field "
                     "will be excluded from CLI options.",
                     arg_name,
@@ -395,7 +395,7 @@ class FunctionContext(TrialIndexMixin):
             return
 
         else:
-            logger.warning(
+            logger.info(
                 "Field `%s` us unsupported type: %s. Field will be excluded from CLI options.",
                 arg_name,
                 str(arg_type),
