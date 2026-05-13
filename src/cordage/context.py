@@ -6,6 +6,7 @@ import sys
 from collections.abc import Callable, Mapping
 from contextlib import contextmanager
 from enum import Enum
+from itertools import chain
 from pathlib import Path
 from types import UnionType
 from typing import (
@@ -291,7 +292,7 @@ class FunctionContext(TrialIndexMixin):
             self.arg_group_config.add_argument(
                 f"--{arg_name}", type=Path, default=MISSING, help=help, metavar="PATH", **kw
             )
-            self.add_arguments_to_parser(arg_type, prefix=arg_name)
+            return self.add_arguments_to_parser(arg_type, prefix=arg_name)
 
         # Look the fields annotation to determine which type of argument
         # to add
@@ -321,7 +322,12 @@ class FunctionContext(TrialIndexMixin):
 
             if len(args) == 1:
                 # optional
-                self._add_argument_to_parser(arg_name, args[0], help=help, **kw)
+                return self._add_argument_to_parser(arg_name, args[0], help=help, **kw)
+
+            elif all(get_origin(a) is Literal for a in args):
+                new_arg_type = Literal[tuple(chain(*(get_args(lit) for lit in args)))]  # ty: ignore[invalid-type-form]
+
+                return self._add_argument_to_parser(arg_name, new_arg_type, help=help, **kw)
 
             else:
                 msg = (

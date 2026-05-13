@@ -45,8 +45,8 @@ if typing.TYPE_CHECKING:
 ConfigClass = TypeVar("ConfigClass", bound="DataclassInstance")
 
 
-class Experiment(Annotatable):
-    def __init__(self, *args, config_cls: type | None = None, **kwargs):
+class Experiment(Annotatable, Generic[ConfigClass]):
+    def __init__(self, *args, config_cls: type[ConfigClass] | None = None, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.config_cls: type[ConfigClass] | None = config_cls
@@ -300,7 +300,7 @@ class Experiment(Annotatable):
                     tried_paths.add(path)
 
 
-class Trial(Experiment, Generic[ConfigClass]):
+class Trial(Experiment[ConfigClass]):
     def __init__(
         self,
         metadata: Metadata | None = None,
@@ -355,10 +355,14 @@ class Trial(Experiment, Generic[ConfigClass]):
                 self.metadata.configuration["output_dir"] = path
 
                 if self._config is not None:
-                    self.config.output_dir = output_dir_type(path)
+                    setattr(
+                        self.config,
+                        self.global_config.param_name_output_dir,
+                        output_dir_type(path),
+                    )
 
 
-class Series(Generic[ConfigClass], Experiment):
+class Series(Experiment[ConfigClass]):
     trials: list[Trial[ConfigClass]]
 
     def __init__(
