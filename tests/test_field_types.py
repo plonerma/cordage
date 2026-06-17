@@ -306,3 +306,26 @@ def test_union(global_config, capfd):
 
     assert "ambigous_union" not in out
     assert "clear_union" in out
+
+
+def test_floats(global_config, resources_path):
+    @dataclass
+    class FloatConfig:
+        a: float
+        b: float
+        c: float
+
+    def f(config: FloatConfig):
+        assert isinstance(config.a, float)
+        assert config.a == 1e-2
+        assert isinstance(config.b, float)
+        assert config.b == 1e-1
+        assert isinstance(config.c, float)
+        assert config.c == 1e-0
+
+    cordage.run(
+        f,
+        [str(resources_path / "simple_g.yaml")],
+        config_only=True,
+        global_config=global_config,
+    )
