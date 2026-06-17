@@ -47,6 +47,7 @@ types_to_cast: list[type[Any]] = [Path, float, bool, int, str, tuple, Enum]
 
 def get_loader(extension: str) -> Callable:
     """Load module for reading a file with the given extension."""
+
     msg = f"Unrecognized file format: '.{extension}' (supported are .toml, .yaml, and .json)."
     if extension not in ("toml", "yaml", "yml", "yl", "json"):
         raise RuntimeError(msg)
@@ -64,9 +65,11 @@ def get_loader(extension: str) -> Callable:
 
     elif extension in ("yaml", "yml", "yl"):
         try:
-            from yaml import safe_load as yaml_loader  # noqa: PLC0415
+            from ruamel.yaml import YAML  # noqa: PLC0415
 
-            loader = yaml_loader
+            yaml = YAML(typ="safe")
+
+            loader = yaml.load
         except ModuleNotFoundError as exc:
             msg = f"Package pyyaml is required to read .{extension} files."
             raise RuntimeError(msg) from exc
