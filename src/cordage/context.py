@@ -166,6 +166,7 @@ class FunctionContext(TrialIndexMixin):
     """
 
     global_config: GlobalConfig
+    main_config_cls: type
 
     usage_str: str = "%(prog)s [-h] [config_file] <configuration options to overwrite>"
 
@@ -195,18 +196,17 @@ class FunctionContext(TrialIndexMixin):
     def set_config_cls(self, config_cls: type | None = None):
         # derive configuration class
         if config_cls is None:
-            self.main_config_cls = self.func_hints.get(self.global_config.param_name_config)
+            config_cls = self.func_hints.get(self.global_config.param_name_config)
 
-        else:
-            self.main_config_cls = config_cls
-
-        if not dataclasses.is_dataclass(self.main_config_cls):
+        if not dataclasses.is_dataclass(config_cls):
             msg = (
                 "Configuration class could not be derived: Either pass a configuration dataclass "
                 "via `config_cls` or annotate the configuration parameter "
-                f"`{self.global_config.param_name_config}` with a dataclass."
+                f"`{self.global_config.param_name_config}` with a dataclass (got: {config_cls!r})."
             )
             raise TypeError(msg)
+
+        self.main_config_cls = config_cls
 
     @property
     def func(self) -> Callable:
