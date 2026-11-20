@@ -39,6 +39,16 @@ yaml = [
   "ruamel.yaml",
 ]
 
+[dependency-groups]
+dev = [
+  "pytest",
+  "coverage[toml]>=6.5",
+  "pytest",
+  "pytest-timeout",
+  "mkdocs",
+  "mkdocs-material",
+  "mkdocstrings[python]",
+]
 
 # === BUILD SYSTEM & TOOLING ===
 
@@ -50,15 +60,9 @@ build-backend = "hatchling.build"
 path = "src/cordage/__about__.py"
 
 [tool.hatch.envs.default]
-dependencies = [
-  "coverage[toml]>=6.5",
-  "pytest",
-  "pytest-timeout",
-  "mkdocs",
-  "mkdocs-material",
-  "mkdocstrings[python]",
-]
+dependency-groups = ["dev", ]
 features = ["toml", "yaml"]
+
 [tool.hatch.envs.default.scripts]
 test = "pytest {args:tests}"
 test-cov = "coverage run -m pytest {args:tests}"
@@ -78,9 +82,8 @@ serve-docs = [
 python = ["3.10", "3.12", "3.14"]
 
 [tool.hatch.envs.lint]
-detached = true
-dependencies = [
-  "ty>=0.0.35",
+extra-dependencies = [
+  "ty>=0.0.107",
   "ruff>=0.12.8",
 ]
 [tool.hatch.envs.lint.scripts]
@@ -167,11 +170,6 @@ ban-relative-imports = "all"
 # Tests can use magic values, assertions, and relative imports
 "tests/**/*" = ["PLR2004", "S101", "TID252"]
 
-
-# --- TYPE CHECKING ---
-
-[tool.ty]
-rules.unresolved-import = "ignore"
 
 # --- TEST COVERAGE ---
 

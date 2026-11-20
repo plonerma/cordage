@@ -329,3 +329,20 @@ def test_floats(global_config, resources_path):
         config_only=True,
         global_config=global_config,
     )
+
+
+def test_unresolved_type(global_config):
+    @dataclass
+    class Config:
+        count: "int" = 1
+        name: str = "control"
+
+    def run(config: Config):
+        assert config.count == 3
+
+    cordage.run(
+        run,
+        ["--count", "3"],
+        config_only=True,
+        global_config=global_config,
+    )

@@ -1,5 +1,6 @@
 import dataclasses
 import logging
+import sys
 import typing
 from collections.abc import Callable, Generator, Iterable, Mapping
 from datetime import datetime, timedelta
@@ -324,13 +325,54 @@ def to_file(dataclass_instance, path: PathLike):
 def config_output_dir_type(
     config_cls: type["DataclassInstance"], param_name_output_dir: str
 ) -> type[str] | type[Path] | None:
-    for field in dataclasses.fields(config_cls):
-        if field.name == param_name_output_dir:
-            if field.type in (str, "str"):
-                return str
-            elif field.type in (Path, "Path"):
-                return Path
+    for name, annotation in resolve_type_annotations(config_cls).items():
+        if name == param_name_output_dir:
+            if annotation in (str, Path):
+                return annotation
             else:
-                msg = f"You must annotate `output_dir` as str or Path: got {field.type}."
+                msg = f"You must annotate `output_dir` as str or Path: got {annotation!r}."
                 raise TypeError(msg)
     return None
+
+
+def _raw_annotations(owner: Any) -> dict[str, Any]:
+    if dataclasses.is_dataclass(owner):
+        return {f.name: f.type for f in dataclasses.fields(owner)}
+    else:
+        return dict(getattr(owner, "__annotations__", {}))
+
+
+_RESOLUTION_ERRORS = (NameError, TypeError, SyntaxError, AttributeError)
+
+
+def resolve_type_annotations(owner: Any) -> dict[str, Any]:
+    """Resolve (possibly string) annotations.
+
+    Returns field name -> typing dict. `hints` values are real
+    classes or typing constructs (Literal, Optional, list[str], etc.).
+    """
+    module = sys.modules.get(getattr(owner, "__module__", ""), None)
+    globalns = dict(vars(module)) if module is not None else {}
+    localns = {owner.__name__: owner} if isinstance(owner, type) else {}
+    raw = _raw_annotations(owner)
+
+    def resolve(fields: dict[str, Any]) -> dict[str, Any]:
+        dummy = type("_AnnotationDummy", (), {"__annotations__": fields})
+        return typing.get_type_hints(dummy, globalns=globalns, localns=localns)
+
+    try:
+        return resolve(raw)
+    except _RESOLUTION_ERRORS:
+        # partial resolution failure
+        # resolve only what can be resolved
+
+        hints: dict[str, Any] = {}
+        unresolved: dict[str, Any] = {}
+
+        for name, annotation in raw.items():
+            try:
+                hints[name] = resolve({name: annotation})[name]
+            except _RESOLUTION_ERRORS:
+                unresolved[name] = str(annotation)
+
+        return hints

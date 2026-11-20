@@ -10,6 +10,7 @@ from itertools import chain
 from pathlib import Path
 from types import UnionType
 from typing import (
+    TYPE_CHECKING,
     Any,
     ClassVar,
     Literal,
@@ -30,7 +31,11 @@ from cordage.util import (
     nest_items,
     nested_update,
     read_dict_from_file,
+    resolve_type_annotations,
 )
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 
 class MissingType:
@@ -165,6 +170,7 @@ class FunctionContext(TrialIndexMixin):
     """
 
     global_config: GlobalConfig
+    main_config_cls: type["DataclassInstance"]
 
     usage_str: str = "%(prog)s [-h] [config_file] <configuration options to overwrite>"
 
@@ -191,23 +197,20 @@ class FunctionContext(TrialIndexMixin):
         else:
             self.description = description
 
-    def set_config_cls(self, config_cls: type | None = None):
+    def set_config_cls(self, config_cls: type["DataclassInstance"] | None = None):
         # derive configuration class
         if config_cls is None:
-            self.main_config_cls = self.func_parameters[
-                self.global_config.param_name_config
-            ].annotation
+            config_cls = self.func_hints.get(self.global_config.param_name_config)
 
-        else:
-            self.main_config_cls = config_cls
-
-        if not dataclasses.is_dataclass(self.main_config_cls):
+        if not dataclasses.is_dataclass(config_cls):
             msg = (
                 "Configuration class could not be derived: Either pass a configuration dataclass "
                 "via `config_cls` or annotate the configuration parameter "
-                f"`{self.global_config.param_name_config}` with a dataclass."
+                f"`{self.global_config.param_name_config}` with a dataclass (got: {config_cls!r})."
             )
             raise TypeError(msg)
+
+        self.main_config_cls = config_cls
 
     @property
     def func(self) -> Callable:
@@ -218,12 +221,17 @@ class FunctionContext(TrialIndexMixin):
         return self._func_parameters
 
     @property
+    def func_hints(self) -> dict[str, Any]:
+        return self._func_hints
+
+    @property
     def func_name(self):
         return self._func_name
 
     def set_function(self, func: Callable):
         self._func = func
         self._func_parameters = inspect.signature(func).parameters
+        self._func_hints = resolve_type_annotations(func)
         self._func_name = getattr(self.func, "__name__", "unnamed-function")
 
         if self.global_config.param_name_config not in self.func_parameters:
@@ -286,7 +294,9 @@ class FunctionContext(TrialIndexMixin):
         self,
         arg_name: str,
         arg_type: Any,
+        *,
         help: str,  # noqa: A002
+        visited: frozenset,
         **kw,
     ):
         if get_origin(arg_type) is tuple:
@@ -298,7 +308,7 @@ class FunctionContext(TrialIndexMixin):
             self.arg_group_config.add_argument(
                 f"--{arg_name}", type=Path, default=MISSING, help=help, metavar="PATH", **kw
             )
-            return self.add_arguments_to_parser(arg_type, prefix=arg_name)
+            return self.add_arguments_to_parser(arg_type, prefix=arg_name, visited=visited)
 
         # Look the fields annotation to determine which type of argument
         # to add
@@ -333,12 +343,16 @@ class FunctionContext(TrialIndexMixin):
 
             if len(args) == 1:
                 # optional
-                return self._add_argument_to_parser(arg_name, args[0], help=help, **kw)
+                return self._add_argument_to_parser(
+                    arg_name, args[0], help=help, visited=visited, **kw
+                )
 
             elif all(get_origin(a) is Literal for a in args):
                 new_arg_type = Literal[tuple(chain(*(get_args(lit) for lit in args)))]  # ty: ignore[invalid-type-form]
 
-                return self._add_argument_to_parser(arg_name, new_arg_type, help=help, **kw)
+                return self._add_argument_to_parser(
+                    arg_name, new_arg_type, help=help, visited=visited, **kw
+                )
 
             else:
                 logger.info(
@@ -403,12 +417,25 @@ class FunctionContext(TrialIndexMixin):
 
             return
 
-    def add_arguments_to_parser(self, config_cls: type, prefix: str | None = None):
+    def add_arguments_to_parser(
+        self,
+        config_cls: type["DataclassInstance"],
+        *,
+        prefix: str | None = None,
+        visited: frozenset = frozenset(),
+    ):
         """Add all fields in the (nested) config class to the parser.
 
         Recursively iterate over the fields adding arguments to the
         parser.
         """
+
+        if config_cls in visited:
+            logger.warning(
+                "Recursiveconfig `%s` at `s`; not expanded", config_cls.__name__, prefix
+            )
+
+        visited = visited | {config_cls}
 
         # read documentation of config dataclass. If no help metadata is
         # given, this will be used a the help text.
@@ -420,6 +447,8 @@ class FunctionContext(TrialIndexMixin):
 
         # Iterate over all fields in the dataclass to add arguments to
         # the parser
+        type_hints = resolve_type_annotations(config_cls)
+
         for field in dataclasses.fields(config_cls):
             if not field.init:
                 continue
@@ -436,10 +465,18 @@ class FunctionContext(TrialIndexMixin):
             # Retrieve help text
             help_text = field.metadata.get("help", param_doc.get(field.name, ""))
 
+            if field.name not in type_hints:
+                logger.warning(
+                    "field %s: cannot resolve annotation %r; excluded from CLI options",
+                    field.name,
+                    field.type,
+                )
+
             self._add_argument_to_parser(
                 arg_name,
-                field.type,
+                type_hints[field.name],
                 help=help_text,
+                visited=visited,
             )
 
     def remove_missing_values(self, data: Mapping) -> dict[str, Any]:
@@ -463,7 +500,7 @@ class FunctionContext(TrialIndexMixin):
             elif not self.global_config.config_only:
                 if name == self.global_config.param_name_output_dir:
                     # pass path to output directory
-                    if issubclass(param.annotation, str):
+                    if self.func_hints.get(name) is str:
                         func_kw[name] = str(trial.output_dir)
                     else:
                         func_kw[name] = trial.output_dir
