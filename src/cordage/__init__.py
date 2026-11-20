@@ -21,7 +21,7 @@ def run(
     args: list[str] | None = None,
     *,
     description: str | None = None,
-    config_cls: type[DataclassInstance] | None = None,
+    config_cls: type["DataclassInstance"] | None = None,
     global_config: PathLike | dict | GlobalConfig | None = None,
     **kw,
 ) -> Experiment:
