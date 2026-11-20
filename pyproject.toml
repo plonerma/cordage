@@ -60,10 +60,10 @@ build-backend = "hatchling.build"
 path = "src/cordage/__about__.py"
 
 [tool.hatch.envs.default]
+dependency-groups = ["dev", ]
 features = ["toml", "yaml"]
 
 [tool.hatch.envs.default.scripts]
-dependency-groups = ["dev", ]
 test = "pytest {args:tests}"
 test-cov = "coverage run -m pytest {args:tests}"
 cov-report = [
@@ -82,7 +82,6 @@ serve-docs = [
 python = ["3.10", "3.12", "3.14"]
 
 [tool.hatch.envs.lint]
-dependency-groups = ["dev", ]
 extra-dependencies = [
   "ty>=0.0.107",
   "ruff>=0.12.8",
