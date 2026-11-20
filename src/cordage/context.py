@@ -10,6 +10,7 @@ from itertools import chain
 from pathlib import Path
 from types import UnionType
 from typing import (
+    TYPE_CHECKING,
     Any,
     ClassVar,
     Literal,
@@ -32,6 +33,9 @@ from cordage.util import (
     read_dict_from_file,
     resolve_type_annotations,
 )
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 
 class MissingType:
@@ -166,7 +170,7 @@ class FunctionContext(TrialIndexMixin):
     """
 
     global_config: GlobalConfig
-    main_config_cls: type
+    main_config_cls: type[DataclassInstance]
 
     usage_str: str = "%(prog)s [-h] [config_file] <configuration options to overwrite>"
 
@@ -193,7 +197,7 @@ class FunctionContext(TrialIndexMixin):
         else:
             self.description = description
 
-    def set_config_cls(self, config_cls: type | None = None):
+    def set_config_cls(self, config_cls: type[DataclassInstance] | None = None):
         # derive configuration class
         if config_cls is None:
             config_cls = self.func_hints.get(self.global_config.param_name_config)
@@ -414,7 +418,11 @@ class FunctionContext(TrialIndexMixin):
             return
 
     def add_arguments_to_parser(
-        self, config_cls: type, *, prefix: str | None = None, visited: frozenset = frozenset()
+        self,
+        config_cls: type[DataclassInstance],
+        *,
+        prefix: str | None = None,
+        visited: frozenset = frozenset(),
     ):
         """Add all fields in the (nested) config class to the parser.
 

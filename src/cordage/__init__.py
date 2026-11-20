@@ -3,11 +3,15 @@ import sys
 from collections.abc import Callable
 from dataclasses import replace
 from os import PathLike
+from typing import TYPE_CHECKING
 
 from cordage import exceptions
 from cordage.context import FunctionContext
 from cordage.experiment import Experiment, Metadata, Series, Status, Trial
 from cordage.global_config import GlobalConfig
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 logger = logging.getLogger("cordage")
 
@@ -17,7 +21,7 @@ def run(
     args: list[str] | None = None,
     *,
     description: str | None = None,
-    config_cls: type | None = None,
+    config_cls: type[DataclassInstance] | None = None,
     global_config: PathLike | dict | GlobalConfig | None = None,
     **kw,
 ) -> Experiment:

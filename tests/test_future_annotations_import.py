@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import pytest
 from dataclasses import dataclass
+
+import pytest
 
 import cordage
 
@@ -21,6 +22,7 @@ def test_future_annotations_import(global_config):
         config_only=True,
         global_config=global_config,
     )
+
 
 @pytest.mark.skip
 def test_future_annotations_import_hidden_config(global_config):
