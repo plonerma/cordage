@@ -16,7 +16,6 @@ class GlobalConfig:
     """Holds the configuration for cordage."""
 
     PROJECT_SPECIFIC_CONFIG_PATH = Path("./cordage_configuration.json")
-    GLOBAL_CONFIG_PATH: Path = Path("~/.config/cordage.json")
 
     base_output_dir: Path = Path("results")
 
@@ -89,7 +88,7 @@ class GlobalConfig:
         elif global_config is None:
             # Go through config file order
 
-            # 1. Check if a project specific configuration file exists
+            # Check if a project specific configuration file exists
             if cls.PROJECT_SPECIFIC_CONFIG_PATH.exists():
                 logger.debug(
                     "Loading project specific global config (%s).",
@@ -97,18 +96,12 @@ class GlobalConfig:
                 )
                 return config_from_file(cls, cls.PROJECT_SPECIFIC_CONFIG_PATH)
 
-            # 2. Check if a global configuration file exists
-            elif cls.GLOBAL_CONFIG_PATH.exists():
-                logger.debug("Loading global config (%s).", cls.GLOBAL_CONFIG_PATH)
-                return config_from_file(cls, cls.GLOBAL_CONFIG_PATH)
-
-            # 3. Use the default values
+            # Use the default values
             else:
                 logger.info(
                     "No cordage configuration given. Using default values. Use a project specific "
-                    "(%s) or global configuration (%s) to change the behavior.",
+                    "(%s) to change the behavior.",
                     cls.PROJECT_SPECIFIC_CONFIG_PATH,
-                    cls.GLOBAL_CONFIG_PATH,
                 )
             return cls()
         else:
