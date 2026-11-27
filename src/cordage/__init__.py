@@ -6,7 +6,7 @@ from os import PathLike
 from typing import TYPE_CHECKING
 
 from cordage import exceptions
-from cordage.context import FunctionContext
+from cordage.context import FunctionContext, experiment_stack
 from cordage.experiment import Experiment, Metadata, Series, Status, Trial
 from cordage.global_config import GlobalConfig
 
@@ -26,7 +26,8 @@ def run(
     **kw,
 ) -> Experiment:
     try:
-        _global_config = replace(GlobalConfig.resolve(global_config), **kw)
+        _global_config = replace(experiment_stack.derive_global_config(global_config), **kw)
+
         context = FunctionContext(
             func,
             description=description,
