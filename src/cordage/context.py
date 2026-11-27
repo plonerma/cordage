@@ -4,9 +4,10 @@ import inspect
 import re
 import sys
 from collections.abc import Callable, Mapping
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from enum import Enum
 from itertools import chain
+from os import PathLike
 from pathlib import Path
 from types import UnionType
 from typing import (
@@ -116,6 +117,20 @@ class ExperimentStack(metaclass=Singleton):
                     yield experiment
             finally:
                 self.pop()
+
+    def derive_global_config(
+        self,
+        global_config: PathLike | dict | GlobalConfig | None = None,
+    ) -> GlobalConfig:
+        if global_config is None:
+            # Use parents global_config (if it exists)
+            parent = self.peek()
+            if parent is None:
+                return GlobalConfig.resolve(None)
+            else:
+                return parent.global_config
+        else:
+            return GlobalConfig.resolve(global_config)
 
 
 experiment_stack: ExperimentStack = ExperimentStack()
@@ -657,28 +672,21 @@ class FunctionContext(TrialIndexMixin):
         The function of this `FunctionContext` is called with the
         configuration given by the experiment.
         """
-        if isinstance(experiment, Trial):
-            if self.global_config.config_only:
+        if not isinstance(experiment, Trial | Series):
+            msg = "Passed object must be Trial or Series"
+            raise TypeError(msg)
+
+        with (
+            # only use stack if full feature-set is used
+            experiment_stack.with_experiment_on_stack(experiment)
+            if not self.global_config.config_only
+            else nullcontext()
+        ):
+            if isinstance(experiment, Trial):
                 # execute function with the constructed keyword
                 # arguments
                 func_kw = self.construct_func_kwargs(experiment)
                 experiment.metadata.result = self.func(**func_kw)
-
             else:
-                # only use stack if full feature-set is used
-                with experiment_stack.with_experiment_on_stack(experiment):
-                    func_kw = self.construct_func_kwargs(experiment)
-                    experiment.metadata.result = self.func(**func_kw)
-
-        elif isinstance(experiment, Series):
-            if self.global_config.config_only:
                 for trial in experiment:
                     self.execute(trial)
-            else:
-                with experiment_stack.with_experiment_on_stack(experiment):
-                    for trial in experiment:
-                        self.execute(trial)
-
-        else:
-            msg = "Passed object must be Trial or Series"
-            raise TypeError(msg)

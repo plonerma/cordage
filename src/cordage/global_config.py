@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from os import PathLike
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, ClassVar, Union
 
 from cordage.util import from_dict as config_from_dict
 from cordage.util import from_file as config_from_file
@@ -15,7 +15,7 @@ _warned_deprecated_nested_global_config: bool = False
 class GlobalConfig:
     """Holds the configuration for cordage."""
 
-    PROJECT_SPECIFIC_CONFIG_PATH = Path("./cordage_configuration.json")
+    PROJECT_SPECIFIC_CONFIG_PATH: ClassVar[Path] = Path("./cordage_configuration.json")
 
     base_output_dir: Path = Path("results")
 
